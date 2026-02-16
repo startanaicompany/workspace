@@ -12,7 +12,7 @@ const { Command } = require('commander');
 const { readFileSync, writeFileSync } = require('fs');
 const { join, basename } = require('path');
 const { prepareFileForUpload, formatFileSize, formatExpiry } = require('../src/lib/fileUtils');
-const { uploadFile, downloadFile, listFiles, getFileMetadata, deleteFile: apiDeleteFile, updateFile: apiUpdateFile } = require('../src/lib/api');
+const { uploadFile, downloadFile, listFiles, getFileMetadata, deleteFile: apiDeleteFile, updateFile: apiUpdateFile, listFeatures, createFeature, getFeature, updateFeature, deleteFeature, addFeatureComment, listFeatureComments } = require('../src/lib/api');
 
 // Get package.json for version
 const packageJson = JSON.parse(
@@ -335,7 +335,50 @@ features
   .option('--priority <level>', 'Filter by priority')
   .action(async (options) => {
     checkEnv();
-    console.log('Would list features with options:', options);
+
+    try {
+      const response = await listFeatures(options);
+
+      console.log('');
+      console.log(`📋 Features (${response.count} total)`);
+      console.log('');
+
+      if (response.features.length === 0) {
+        console.log('   No features found');
+        console.log('');
+        return;
+      }
+
+      response.features.forEach(feature => {
+        const statusEmoji = {
+          'requested': '📝',
+          'in_progress': '🔄',
+          'completed': '✅',
+          'rejected': '❌'
+        }[feature.status] || '📋';
+
+        const priorityColor = {
+          'low': '🟢',
+          'medium': '🟡',
+          'high': '🟠',
+          'critical': '🔴'
+        }[feature.priority] || '⚪';
+
+        console.log(`   ${statusEmoji} ${feature.title}`);
+        console.log(`      ID: ${feature.id}`);
+        console.log(`      Project: ${feature.project || 'N/A'} | Priority: ${priorityColor} ${feature.priority || 'N/A'}`);
+        console.log(`      Status: ${feature.status || 'requested'}`);
+        console.log(`      Created: ${new Date(feature.created_at).toLocaleString()} by ${feature.created_by_agent}`);
+        if (feature.updated_at && feature.updated_at !== feature.created_at) {
+          console.log(`      Updated: ${new Date(feature.updated_at).toLocaleString()}`);
+        }
+        console.log('');
+      });
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
   });
 
 features
@@ -347,7 +390,39 @@ features
   .option('--requested-by <name>', 'Requester name')
   .action(async (title, options) => {
     checkEnv();
-    console.log('Would create feature:', { title, options });
+
+    try {
+      console.log(`🚀 Creating feature: ${title}`);
+      console.log('');
+
+      const data = {
+        title,
+        project: options.project,
+        description: options.description,
+        priority: options.priority || 'medium',
+        requested_by: options.requestedBy,
+        created_by_agent: process.env.SAAC_HIVE_AGENT_NAME,
+        status: 'requested'
+      };
+
+      const response = await createFeature(data);
+
+      console.log('✅ Feature created successfully!');
+      console.log('');
+      console.log(`   ID: ${response.feature.id}`);
+      console.log(`   Title: ${response.feature.title}`);
+      console.log(`   Project: ${response.feature.project || 'N/A'}`);
+      console.log(`   Priority: ${response.feature.priority}`);
+      console.log(`   Status: ${response.feature.status}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      if (error.response?.data?.details) {
+        console.error('   Details:', error.response.data.details);
+      }
+      process.exit(1);
+    }
   });
 
 features
@@ -355,18 +430,145 @@ features
   .description('Get feature details')
   .action(async (featureId) => {
     checkEnv();
-    console.log('Would get feature:', featureId);
+
+    try {
+      const response = await getFeature(featureId);
+      const feature = response.feature;
+
+      console.log('');
+      console.log(`📋 ${feature.title}`);
+      console.log('');
+      console.log(`   ID: ${feature.id}`);
+      console.log(`   Project: ${feature.project || 'N/A'}`);
+      console.log(`   Priority: ${feature.priority || 'N/A'}`);
+      console.log(`   Status: ${feature.status || 'requested'}`);
+      console.log('');
+      console.log(`   Created: ${new Date(feature.created_at).toLocaleString()}`);
+      console.log(`   Created By: ${feature.created_by_agent}`);
+      if (feature.updated_by_agent) {
+        console.log(`   Updated By: ${feature.updated_by_agent}`);
+        console.log(`   Updated: ${new Date(feature.updated_at).toLocaleString()}`);
+      }
+      console.log('');
+
+      if (feature.description) {
+        console.log(`   Description:`);
+        console.log(`   ${feature.description}`);
+        console.log('');
+      }
+
+      if (feature.requested_by) {
+        console.log(`   Requested By: ${feature.requested_by}`);
+        console.log('');
+      }
+
+      // Try to get comments
+      try {
+        const commentsResponse = await listFeatureComments(featureId);
+        if (commentsResponse.comments && commentsResponse.comments.length > 0) {
+          console.log(`   💬 Comments (${commentsResponse.comments.length}):`);
+          console.log('');
+          commentsResponse.comments.forEach(comment => {
+            console.log(`      "${comment.comment}"`);
+            console.log(`      - ${comment.created_by_agent} at ${new Date(comment.created_at).toLocaleString()}`);
+            console.log('');
+          });
+        }
+      } catch (err) {
+        // Comments might not be supported yet, silently ignore
+      }
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      if (error.response?.status === 404) {
+        console.error('   Feature not found');
+      }
+      process.exit(1);
+    }
   });
 
 features
   .command('update <feature-id>')
   .description('Update feature request')
-  .option('--status <status>', 'New status')
-  .option('--priority <level>', 'New priority')
+  .option('--status <status>', 'New status (requested|in_progress|completed|rejected)')
+  .option('--priority <level>', 'New priority (low|medium|high|critical)')
   .option('--description <text>', 'New description')
   .action(async (featureId, options) => {
     checkEnv();
-    console.log('Would update feature:', { featureId, options });
+
+    try {
+      const updates = {
+        updated_by_agent: process.env.SAAC_HIVE_AGENT_NAME
+      };
+
+      if (options.status) updates.status = options.status;
+      if (options.priority) updates.priority = options.priority;
+      if (options.description) updates.description = options.description;
+
+      const response = await updateFeature(featureId, updates);
+
+      console.log('');
+      console.log('✅ Feature updated successfully');
+      console.log(`   ID: ${response.feature.id}`);
+      console.log(`   Title: ${response.feature.title}`);
+      if (options.status) {
+        console.log(`   New Status: ${response.feature.status}`);
+      }
+      if (options.priority) {
+        console.log(`   New Priority: ${response.feature.priority}`);
+      }
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+features
+  .command('comment <feature-id> <comment>')
+  .description('Add comment to feature')
+  .action(async (featureId, comment) => {
+    checkEnv();
+
+    try {
+      const data = {
+        comment,
+        created_by_agent: process.env.SAAC_HIVE_AGENT_NAME
+      };
+
+      const response = await addFeatureComment(featureId, data);
+
+      console.log('');
+      console.log('✅ Comment added successfully');
+      console.log(`   Feature: ${featureId}`);
+      console.log(`   Comment: "${comment}"`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+features
+  .command('delete <feature-id>')
+  .description('Delete feature')
+  .action(async (featureId) => {
+    checkEnv();
+
+    try {
+      const response = await deleteFeature(featureId);
+
+      console.log('');
+      console.log('✅ Feature deleted successfully');
+      console.log(`   ID: ${featureId}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
   });
 
 // ============================================================================

@@ -92,6 +92,71 @@ async function updateFile(remotePath, updates) {
   return response.data;
 }
 
+/**
+ * List features
+ */
+async function listFeatures(filters = {}) {
+  const client = createClient();
+  const response = await client.get('/api/features', {
+    params: filters
+  });
+  return response.data;
+}
+
+/**
+ * Create feature
+ */
+async function createFeature(data) {
+  const client = createClient();
+  const response = await client.post('/api/features', data);
+  return response.data;
+}
+
+/**
+ * Get feature details
+ */
+async function getFeature(featureId) {
+  const client = createClient();
+  const response = await client.get(`/api/features/${featureId}`);
+  return response.data;
+}
+
+/**
+ * Update feature
+ */
+async function updateFeature(featureId, updates) {
+  const client = createClient();
+  const response = await client.patch(`/api/features/${featureId}`, updates);
+  return response.data;
+}
+
+/**
+ * Delete feature
+ */
+async function deleteFeature(featureId) {
+  const client = createClient();
+  const response = await client.delete(`/api/features/${featureId}`);
+  return response.data;
+}
+
+/**
+ * Add comment to feature
+ */
+async function addFeatureComment(featureId, comment) {
+  const client = createClient();
+  const response = await client.post(`/api/features/${featureId}/comments`, comment);
+  return response.data;
+}
+
+/**
+ * List feature comments
+ */
+async function listFeatureComments(featureId) {
+  const client = createClient();
+  const response = await client.get(`/api/features/${featureId}/comments`);
+  return response.data;
+}
+
 module.exports = {
   createClient,
   uploadFile,
@@ -99,5 +164,12 @@ module.exports = {
   listFiles,
   getFileMetadata,
   deleteFile,
-  updateFile
+  updateFile,
+  listFeatures,
+  createFeature,
+  getFeature,
+  updateFeature,
+  deleteFeature,
+  addFeatureComment,
+  listFeatureComments
 };
