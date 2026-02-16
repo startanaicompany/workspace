@@ -12,7 +12,7 @@ const { Command } = require('commander');
 const { readFileSync, writeFileSync } = require('fs');
 const { join, basename } = require('path');
 const { prepareFileForUpload, formatFileSize, formatExpiry } = require('../src/lib/fileUtils');
-const { uploadFile, downloadFile, listFiles, getFileMetadata, deleteFile: apiDeleteFile, updateFile: apiUpdateFile, listFeatures, createFeature, getFeature, updateFeature, deleteFeature, addFeatureComment, listFeatureComments } = require('../src/lib/api');
+const { uploadFile, downloadFile, listFiles, getFileMetadata, deleteFile: apiDeleteFile, updateFile: apiUpdateFile, getProjectByName, listFeatures, createFeature, getFeature, updateFeature, deleteFeature, addFeatureComment, listFeatureComments, listBugs, createBug, getBug, updateBug, deleteBug, addBugComment, listBugComments } = require('../src/lib/api');
 
 // Get package.json for version
 const packageJson = JSON.parse(
@@ -384,7 +384,7 @@ features
 features
   .command('create <title>')
   .description('Create new feature request')
-  .option('--project <name>', 'Project name')
+  .option('--project <name>', 'Project name (will lookup UUID automatically)')
   .option('--description <text>', 'Feature description')
   .option('--priority <level>', 'Priority (low|medium|high|critical)')
   .option('--requested-by <name>', 'Requester name')
@@ -395,25 +395,33 @@ features
       console.log(`🚀 Creating feature: ${title}`);
       console.log('');
 
+      // Lookup project UUID by name
+      let projectId = null;
+      if (options.project) {
+        console.log(`   Looking up project: ${options.project}...`);
+        const projectResponse = await getProjectByName(options.project);
+        projectId = projectResponse.project.id;
+        console.log(`   Project ID: ${projectId.substring(0, 8)}`);
+        console.log('');
+      }
+
       const data = {
         title,
-        project: options.project,
+        project_id: projectId,
         description: options.description,
         priority: options.priority || 'medium',
-        requested_by: options.requestedBy,
-        created_by_agent: process.env.SAAC_HIVE_AGENT_NAME,
-        status: 'requested'
+        requested_by: options.requestedBy || process.env.SAAC_HIVE_AGENT_NAME
       };
 
       const response = await createFeature(data);
 
       console.log('✅ Feature created successfully!');
       console.log('');
-      console.log(`   ID: ${response.feature.id}`);
-      console.log(`   Title: ${response.feature.title}`);
-      console.log(`   Project: ${response.feature.project || 'N/A'}`);
-      console.log(`   Priority: ${response.feature.priority}`);
-      console.log(`   Status: ${response.feature.status}`);
+      console.log(`   ID: ${response.featureRequest.id.substring(0, 8)}`);
+      console.log(`   Title: ${response.featureRequest.title}`);
+      console.log(`   Priority: ${response.featureRequest.priority}`);
+      console.log(`   Status: ${response.featureRequest.status}`);
+      console.log(`   Votes: ${response.featureRequest.votes}`);
       console.log('');
 
     } catch (error) {
@@ -433,7 +441,7 @@ features
 
     try {
       const response = await getFeature(featureId);
-      const feature = response.feature;
+      const feature = response.featureRequest;
 
       console.log('');
       console.log(`📋 ${feature.title}`);
@@ -509,13 +517,13 @@ features
 
       console.log('');
       console.log('✅ Feature updated successfully');
-      console.log(`   ID: ${response.feature.id}`);
-      console.log(`   Title: ${response.feature.title}`);
+      console.log(`   ID: ${response.featureRequest.id}`);
+      console.log(`   Title: ${response.featureRequest.title}`);
       if (options.status) {
-        console.log(`   New Status: ${response.feature.status}`);
+        console.log(`   New Status: ${response.featureRequest.status}`);
       }
       if (options.priority) {
-        console.log(`   New Priority: ${response.feature.priority}`);
+        console.log(`   New Priority: ${response.featureRequest.priority}`);
       }
       console.log('');
 
@@ -563,6 +571,240 @@ features
       console.log('');
       console.log('✅ Feature deleted successfully');
       console.log(`   ID: ${featureId}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+// ============================================================================
+// BUGS Commands
+// ============================================================================
+
+const bugs = program
+  .command('bugs')
+  .description('Manage bugs and issues');
+
+bugs
+  .command('list')
+  .description('List bugs')
+  .option('--project <name>', 'Filter by project')
+  .option('--status <status>', 'Filter by status')
+  .option('--severity <level>', 'Filter by severity')
+  .action(async (options) => {
+    checkEnv();
+
+    try {
+      const response = await listBugs(options);
+
+      console.log('');
+      console.log(`🐛 Bugs (${response.bugs.length} found)`);
+      console.log('');
+
+      if (response.bugs.length === 0) {
+        console.log('   No bugs found');
+        console.log('');
+        return;
+      }
+
+      response.bugs.forEach(bug => {
+        const severityEmoji = {
+          'low': '🟢',
+          'medium': '🟡',
+          'high': '🟠',
+          'critical': '🔴'
+        }[bug.severity] || '⚪';
+
+        const statusEmoji = {
+          'open': '📋',
+          'in_progress': '🔄',
+          'resolved': '✅',
+          'closed': '🔒'
+        }[bug.status] || '📋';
+
+        console.log(`   ${statusEmoji} ${bug.title}`);
+        console.log(`      ID: ${bug.id.substring(0, 8)}`);
+        console.log(`      Severity: ${severityEmoji} ${bug.severity} | Status: ${bug.status}`);
+        console.log(`      Created: ${new Date(bug.created_at).toLocaleString()}`);
+        console.log('');
+      });
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+bugs
+  .command('create <title>')
+  .description('Create new bug report')
+  .option('--project <name>', 'Project name')
+  .option('--description <text>', 'Bug description')
+  .option('--severity <level>', 'Severity (low|medium|high|critical)')
+  .option('--steps <text>', 'Steps to reproduce')
+  .option('--environment <env>', 'Environment (staging|production)')
+  .action(async (title, options) => {
+    checkEnv();
+
+    try {
+      console.log(`🐛 Creating bug: ${title}`);
+      console.log('');
+
+      const data = {
+        project: options.project,
+        title,
+        description: options.description || '',
+        severity: options.severity || 'medium',
+        steps_to_reproduce: options.steps,
+        environment: options.environment || 'staging'
+      };
+
+      const response = await createBug(data);
+
+      console.log('✅ Bug created successfully!');
+      console.log('');
+      console.log(`   ID: ${response.bug.id.substring(0, 8)}`);
+      console.log(`   Title: ${response.bug.title}`);
+      console.log(`   Severity: ${response.bug.severity}`);
+      console.log(`   Status: ${response.bug.status}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      if (error.response?.data?.details) {
+        console.error('   Details:', error.response.data.details);
+      }
+      process.exit(1);
+    }
+  });
+
+bugs
+  .command('get <bug-id>')
+  .description('Get bug details')
+  .action(async (bugId) => {
+    checkEnv();
+
+    try {
+      const response = await getBug(bugId);
+      const bug = response.bug;
+
+      console.log('');
+      console.log(`🐛 ${bug.title}`);
+      console.log('');
+      console.log(`   ID: ${bug.id}`);
+      console.log(`   Severity: ${bug.severity}`);
+      console.log(`   Status: ${bug.status}`);
+      console.log('');
+      console.log(`   Created: ${new Date(bug.created_at).toLocaleString()}`);
+      console.log('');
+
+      if (bug.description) {
+        console.log(`   Description:`);
+        console.log(`   ${bug.description}`);
+        console.log('');
+      }
+
+      // Try to get comments
+      try {
+        const commentsResponse = await listBugComments(bugId);
+        if (commentsResponse.comments && commentsResponse.comments.length > 0) {
+          console.log(`   💬 Comments (${commentsResponse.comments.length}):`);
+          console.log('');
+          commentsResponse.comments.forEach(comment => {
+            console.log(`      "${comment.comment_text}"`);
+            console.log(`      - ${comment.author} at ${new Date(comment.created_at).toLocaleString()}`);
+            console.log('');
+          });
+        }
+      } catch (err) {
+        // Comments might not be supported yet, silently ignore
+      }
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      if (error.response?.status === 404) {
+        console.error('   Bug not found');
+      }
+      process.exit(1);
+    }
+  });
+
+bugs
+  .command('update <bug-id>')
+  .description('Update bug')
+  .option('--status <status>', 'New status (open|in_progress|resolved|closed)')
+  .option('--severity <level>', 'New severity (low|medium|high|critical)')
+  .option('--description <text>', 'New description')
+  .action(async (bugId, options) => {
+    checkEnv();
+
+    try {
+      const updates = {};
+
+      if (options.status) updates.status = options.status;
+      if (options.severity) updates.severity = options.severity;
+      if (options.description) updates.description = options.description;
+
+      const response = await updateBug(bugId, updates);
+
+      console.log('');
+      console.log('✅ Bug updated successfully');
+      console.log(`   ID: ${response.bug.id.substring(0, 8)}`);
+      console.log(`   Title: ${response.bug.title}`);
+      if (options.status) {
+        console.log(`   New Status: ${response.bug.status}`);
+      }
+      if (options.severity) {
+        console.log(`   New Severity: ${response.bug.severity}`);
+      }
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+bugs
+  .command('comment <bug-id> <comment>')
+  .description('Add comment to bug')
+  .action(async (bugId, comment) => {
+    checkEnv();
+
+    try {
+      const data = {
+        comment,
+        author: process.env.SAAC_HIVE_AGENT_NAME
+      };
+
+      const response = await addBugComment(bugId, data);
+
+      console.log('');
+      console.log('✅ Comment added successfully');
+      console.log(`   Bug: ${bugId}`);
+      console.log(`   Comment: "${comment}"`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+bugs
+  .command('delete <bug-id>')
+  .description('Delete bug')
+  .action(async (bugId) => {
+    checkEnv();
+
+    try {
+      const response = await deleteBug(bugId);
+
+      console.log('');
+      console.log('✅ Bug deleted successfully');
+      console.log(`   ID: ${bugId}`);
       console.log('');
 
     } catch (error) {

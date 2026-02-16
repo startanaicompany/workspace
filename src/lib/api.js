@@ -93,6 +93,17 @@ async function updateFile(remotePath, updates) {
 }
 
 /**
+ * Get project by name
+ */
+async function getProjectByName(projectName) {
+  const client = createClient();
+  const response = await client.get('/api/projects/by-name', {
+    params: { name: projectName }
+  });
+  return response.data;
+}
+
+/**
  * List features
  */
 async function listFeatures(filters = {}) {
@@ -126,7 +137,7 @@ async function getFeature(featureId) {
  */
 async function updateFeature(featureId, updates) {
   const client = createClient();
-  const response = await client.patch(`/api/features/${featureId}`, updates);
+  const response = await client.put(`/api/features/${featureId}`, updates);
   return response.data;
 }
 
@@ -157,6 +168,71 @@ async function listFeatureComments(featureId) {
   return response.data;
 }
 
+/**
+ * List bugs
+ */
+async function listBugs(filters = {}) {
+  const client = createClient();
+  const response = await client.get('/api/bugs', {
+    params: filters
+  });
+  return response.data;
+}
+
+/**
+ * Create bug
+ */
+async function createBug(data) {
+  const client = createClient();
+  const response = await client.post('/api/bugs', data);
+  return response.data;
+}
+
+/**
+ * Get bug details
+ */
+async function getBug(bugId) {
+  const client = createClient();
+  const response = await client.get(`/api/bugs/${bugId}`);
+  return response.data;
+}
+
+/**
+ * Update bug
+ */
+async function updateBug(bugId, updates) {
+  const client = createClient();
+  const response = await client.put(`/api/bugs/${bugId}`, updates);
+  return response.data;
+}
+
+/**
+ * Delete bug
+ */
+async function deleteBug(bugId) {
+  const client = createClient();
+  const response = await client.delete(`/api/bugs/${bugId}`);
+  return response.data;
+}
+
+/**
+ * Add comment to bug
+ */
+async function addBugComment(bugId, comment) {
+  const client = createClient();
+  const response = await client.post(`/api/bugs/${bugId}/comments`, comment);
+  return response.data;
+}
+
+/**
+ * List bug comments
+ */
+async function listBugComments(bugId) {
+  const client = createClient();
+  const response = await client.get(`/api/bugs/${bugId}/comments`);
+  return response.data;
+}
+
 module.exports = {
   createClient,
   uploadFile,
@@ -165,11 +241,19 @@ module.exports = {
   getFileMetadata,
   deleteFile,
   updateFile,
+  getProjectByName,
   listFeatures,
   createFeature,
   getFeature,
   updateFeature,
   deleteFeature,
   addFeatureComment,
-  listFeatureComments
+  listFeatureComments,
+  listBugs,
+  createBug,
+  getBug,
+  updateBug,
+  deleteBug,
+  addBugComment,
+  listBugComments
 };
