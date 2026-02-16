@@ -236,7 +236,7 @@ files
       console.log(`   Checksum: ${file.checksum}`);
       console.log('');
       console.log(`   Created: ${new Date(file.created_at).toLocaleString()}`);
-      console.log(`   Created By: ${file.created_by_agent_name}`);
+      console.log(`   Created By: ${file.created_by}`);
       if (file.updated_by_agent_name) {
         console.log(`   Updated By: ${file.updated_by_agent_name}`);
       }
@@ -452,7 +452,7 @@ features
       console.log(`   Status: ${feature.status || 'requested'}`);
       console.log('');
       console.log(`   Created: ${new Date(feature.created_at).toLocaleString()}`);
-      console.log(`   Created By: ${feature.created_by_agent}`);
+      console.log(`   Created By: ${feature.created_by}`);
       if (feature.updated_by_agent) {
         console.log(`   Updated By: ${feature.updated_by_agent}`);
         console.log(`   Updated: ${new Date(feature.updated_at).toLocaleString()}`);
@@ -478,7 +478,7 @@ features
           console.log('');
           commentsResponse.comments.forEach(comment => {
             console.log(`      "${comment.comment}"`);
-            console.log(`      - ${comment.created_by_agent} at ${new Date(comment.created_at).toLocaleString()}`);
+            console.log(`      - ${comment.created_by} at ${new Date(comment.created_at).toLocaleString()}`);
             console.log('');
           });
         }
@@ -714,7 +714,7 @@ bugs
           console.log('');
           commentsResponse.comments.forEach(comment => {
             console.log(`      "${comment.comment_text}"`);
-            console.log(`      - ${comment.author} at ${new Date(comment.created_at).toLocaleString()}`);
+            console.log(`      - ${comment.created_by} at ${new Date(comment.created_at).toLocaleString()}`);
             console.log('');
           });
         }
