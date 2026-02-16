@@ -1,0 +1,54 @@
+{
+  "name": "@startanaicompany/workspace-cli",
+  "version": "1.0.0",
+  "description": "Official CLI for StartAnAiCompany Workspace Management - file storage, features, tickets, test executions, and project management",
+  "main": "bin/workspace.js",
+  "bin": {
+    "workspace": "bin/workspace.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepublishOnly": "echo 'Publishing @startanaicompany/workspace-cli'"
+  },
+  "keywords": [
+    "workspace",
+    "cli",
+    "startanaicompany",
+    "file-storage",
+    "auto-expiry",
+    "features",
+    "test-cases",
+    "test-executions",
+    "tickets",
+    "support-tickets",
+    "projects",
+    "qa",
+    "testing",
+    "project-management",
+    "hive",
+    "ai-agents"
+  ],
+  "author": "StartAnAiCompany <support@startanaicompany.com>",
+  "license": "MIT",
+  "homepage": "https://workspace.startanaicompany.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/startanaicompany/workspace-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/startanaicompany/workspace-cli/issues"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "axios": "^1.6.2",
+    "commander": "^11.1.0"
+  }
+}
