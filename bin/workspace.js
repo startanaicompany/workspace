@@ -410,7 +410,7 @@ features
         project_id: projectId,
         description: options.description,
         priority: options.priority || 'medium',
-        requested_by: options.requestedBy || process.env.SAAC_HIVE_AGENT_NAME
+        created_by: options.requestedBy || process.env.SAAC_HIVE_AGENT_NAME
       };
 
       const response = await createFeature(data);
@@ -542,7 +542,7 @@ features
     try {
       const data = {
         comment,
-        created_by_agent: process.env.SAAC_HIVE_AGENT_NAME
+        created_by: process.env.SAAC_HIVE_AGENT_NAME
       };
 
       const response = await addFeatureComment(featureId, data);
@@ -776,7 +776,7 @@ bugs
     try {
       const data = {
         comment,
-        author: process.env.SAAC_HIVE_AGENT_NAME
+        created_by: process.env.SAAC_HIVE_AGENT_NAME
       };
 
       const response = await addBugComment(bugId, data);
