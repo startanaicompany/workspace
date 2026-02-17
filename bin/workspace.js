@@ -2079,26 +2079,6 @@ executions
     }
   });
 
-executions
-  .command('update-step <execution-id> <step-number>')
-  .description('Update execution step result')
-  .requiredOption('--status <status>', 'Step status (passed|failed|skipped)')
-  .option('--notes <text>', 'Step notes')
-  .action(async (executionId, stepNumber, options) => {
-    checkEnv();
-    console.log('Would update step:', { executionId, stepNumber, options });
-  });
-
-executions
-  .command('complete <execution-id>')
-  .description('Complete test execution')
-  .requiredOption('--status <status>', 'Final status (passed|failed)')
-  .option('--notes <text>', 'Execution notes')
-  .action(async (executionId, options) => {
-    checkEnv();
-    console.log('Would complete execution:', { executionId, options });
-  });
-
 // ============================================================================
 // TICKETS Commands - Support Tickets
 // ============================================================================
@@ -2109,28 +2089,148 @@ const tickets = program
 tickets
   .command('list')
   .description('List support tickets')
-  .option('--project <name>', 'Filter by project')
-  .option('--status <status>', 'Filter by status')
-  .option('--priority <level>', 'Filter by priority')
+  .option('--project-name <name>', 'Filter by project name (a-z0-9)')
+  .option('--project-id <id>', 'Filter by project ID (short or long UUID)')
+  .option('--status <status>', 'Filter by status (new|open|pending|resolved|closed)')
+  .option('--priority <level>', 'Filter by priority (low|medium|high|urgent)')
+  .option('--category <cat>', 'Filter by category')
+  .option('--customer-email <email>', 'Filter by customer email')
+  .option('--created-by <name>', 'Filter by creator agent')
+  .option('--tags <tags>', 'Filter by tags (comma-separated)')
+  .option('--limit <number>', 'Max results (default: 50, max: 500)')
+  .option('--offset <number>', 'Skip first N results (default: 0)')
   .action(async (options) => {
     checkEnv();
-    console.log('Would list tickets with options:', options);
+
+    try {
+      const filters = {};
+      if (options.projectName) filters.project_name = options.projectName;
+      if (options.projectId) filters.project_id = options.projectId;
+      if (options.status) filters.status = options.status;
+      if (options.priority) filters.priority = options.priority;
+      if (options.category) filters.category = options.category;
+      if (options.customerEmail) filters.customer_email = options.customerEmail;
+      if (options.createdBy) filters.created_by = options.createdBy;
+      if (options.tags) filters.tags = options.tags;
+      if (options.limit) filters.limit = parseInt(options.limit);
+      if (options.offset) filters.offset = parseInt(options.offset);
+
+      const response = await listTickets(filters);
+
+      console.log('');
+      console.log(`🎫 Tickets (${response.total || response.tickets.length} found)`);
+      console.log('');
+
+      if (response.tickets.length === 0) {
+        console.log('   No tickets found');
+        console.log('');
+        return;
+      }
+
+      response.tickets.forEach(ticket => {
+        const priorityEmoji = {
+          'low': '🟢',
+          'medium': '🟡',
+          'high': '🟠',
+          'urgent': '🔴',
+          'critical': '🔴'
+        }[ticket.priority] || '⚪';
+
+        const statusEmoji = {
+          'new': '🆕',
+          'open': '📭',
+          'pending': '⏳',
+          'resolved': '✅',
+          'closed': '🔒'
+        }[ticket.status] || '🎫';
+
+        console.log(`   ${statusEmoji} ${priorityEmoji} ${ticket.subject || ticket.title} (${ticket.id.substring(0, 8)})`);
+        console.log(`      Status: ${ticket.status} | Priority: ${ticket.priority || 'N/A'}`);
+        if (ticket.customer_email) {
+          console.log(`      Customer: ${ticket.customer_name || 'N/A'} <${ticket.customer_email}>`);
+        }
+        if (ticket.category) {
+          console.log(`      Category: ${ticket.category}`);
+        }
+        if (ticket.created_by) {
+          console.log(`      Created by: ${ticket.created_by}`);
+        }
+        console.log(`      Created: ${new Date(ticket.created_at).toLocaleString()}`);
+        console.log('');
+      });
+
+      if (response.total > response.tickets.length) {
+        console.log(`   Showing ${response.tickets.length} of ${response.total} total tickets`);
+        console.log(`   Use --offset and --limit for pagination`);
+        console.log('');
+      }
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
   });
 
 tickets
-  .command('create <title>')
+  .command('create <subject>')
   .description('Create new support ticket')
-  .option('--project <name>', 'Project name')
+  .option('--project <name>', 'Project name (will lookup UUID automatically)')
   .requiredOption('--description <text>', 'Ticket description (minimum 500 words)')
-  .option('--priority <level>', 'Priority (low|medium|high|critical)')
-  .option('--customer-email <email>', 'Customer email')
-  .action(async (title, options) => {
+  .option('--priority <level>', 'Priority (low|medium|high|urgent)', 'medium')
+  .option('--category <category>', 'Category (bug|feature|question|other)')
+  .option('--customer-email <email>', 'Customer email address')
+  .option('--customer-name <name>', 'Customer name')
+  .option('--source <source>', 'Ticket source (web|email|api|chat)')
+  .option('--tags <tags>', 'Tags (comma-separated)')
+  .action(async (subject, options) => {
     checkEnv();
 
-    // Validate description has minimum 500 words
-    validateDescription(options.description, 'description');
+    try {
+      // Validate description has minimum 500 words
+      validateDescription(options.description, 'description');
 
-    console.log('Would create ticket:', { title, options });
+      const data = {
+        subject,
+        description: options.description,
+        priority: options.priority,
+        created_by: process.env.SAAC_HIVE_AGENT_NAME
+      };
+
+      // Look up project UUID if project name provided
+      if (options.project) {
+        const projectResponse = await getProjectByName(options.project);
+        data.project_id = projectResponse.project.id;
+      }
+
+      if (options.category) data.category = options.category;
+      if (options.customerEmail) data.customer_email = options.customerEmail;
+      if (options.customerName) data.customer_name = options.customerName;
+      if (options.source) data.source = options.source;
+      if (options.tags) data.tags = options.tags.split(',').map(t => t.trim());
+
+      const response = await createTicket(data);
+
+      console.log('');
+      console.log('✅ Ticket created successfully');
+      console.log(`   ID: ${response.ticket.id.substring(0, 8)}`);
+      console.log(`   Subject: ${response.ticket.subject}`);
+      console.log(`   Priority: ${response.ticket.priority}`);
+      console.log(`   Status: ${response.ticket.status}`);
+      if (response.ticket.customer_email) {
+        console.log(`   Customer: ${response.ticket.customer_name || 'N/A'} <${response.ticket.customer_email}>`);
+      }
+      if (response.ticket.project_id) {
+        console.log(`   Project ID: ${response.ticket.project_id.substring(0, 8)}`);
+      }
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      if (error.response?.status === 404 && options.project) {
+        console.error(`   Project "${options.project}" not found`);
+      }
+      process.exit(1);
+    }
   });
 
 tickets
@@ -2254,18 +2354,77 @@ tickets
 tickets
   .command('respond <ticket-id> <message>')
   .description('Add response to ticket')
-  .action(async (ticketId, message) => {
+  .option('--internal', 'Mark response as internal note (not visible to customer)', false)
+  .option('--responder-type <type>', 'Responder type (agent|user|system)', 'agent')
+  .action(async (ticketId, message, options) => {
     checkEnv();
-    console.log('Would respond to ticket:', { ticketId, message });
+
+    try {
+      const data = {
+        message,
+        responder: process.env.SAAC_HIVE_AGENT_NAME,
+        responder_type: options.responderType,
+        is_internal: options.internal
+      };
+
+      const response = await respondToTicket(ticketId, data);
+
+      console.log('');
+      console.log('✅ Response added successfully');
+      console.log(`   Ticket ID: ${ticketId.substring(0, 8)}`);
+      console.log(`   Responder: ${data.responder}`);
+      console.log(`   Type: ${data.responder_type}`);
+      if (data.is_internal) {
+        console.log(`   🔒 Internal Note (not visible to customer)`);
+      }
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      if (error.response?.status === 404) {
+        console.error('   Ticket not found');
+      }
+      process.exit(1);
+    }
   });
 
 tickets
   .command('resolve <ticket-id>')
   .description('Resolve ticket')
-  .option('--resolution <type>', 'Resolution type')
+  .requiredOption('--resolution-type <type>', 'Resolution type (fixed|wont_fix|duplicate|by_design|not_reproducible)')
+  .option('--notes <text>', 'Resolution notes')
   .action(async (ticketId, options) => {
     checkEnv();
-    console.log('Would resolve ticket:', { ticketId, options });
+
+    try {
+      const data = {
+        resolution_type: options.resolutionType
+      };
+
+      if (options.notes) {
+        data.resolution_notes = options.notes;
+      }
+
+      const response = await resolveTicket(ticketId, data);
+
+      console.log('');
+      console.log('✅ Ticket resolved successfully');
+      console.log(`   Ticket ID: ${response.ticket.id.substring(0, 8)}`);
+      console.log(`   Subject: ${response.ticket.subject || response.ticket.title}`);
+      console.log(`   Status: ${response.ticket.status}`);
+      console.log(`   Resolution: ${data.resolution_type}`);
+      if (data.resolution_notes) {
+        console.log(`   Notes: ${data.resolution_notes}`);
+      }
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      if (error.response?.status === 404) {
+        console.error('   Ticket not found');
+      }
+      process.exit(1);
+    }
   });
 
 // ----------------------------------------------------------------------------
@@ -2429,34 +2588,177 @@ const projects = program
 projects
   .command('list')
   .description('List all projects')
-  .action(async () => {
+  .option('--limit <number>', 'Max results (default: 50)', '50')
+  .option('--offset <number>', 'Skip first N results (default: 0)', '0')
+  .action(async (options) => {
     checkEnv();
-    console.log('Would list projects');
+
+    try {
+      const filters = {
+        limit: parseInt(options.limit),
+        offset: parseInt(options.offset)
+      };
+
+      const response = await listProjects(filters);
+
+      console.log('');
+      console.log(`📁 Projects (${response.projects.length} found)`);
+      console.log('');
+
+      if (response.projects.length === 0) {
+        console.log('   No projects found');
+        console.log('');
+        return;
+      }
+
+      response.projects.forEach(project => {
+        console.log(`   📁 ${project.display_name || project.name} (${project.id.substring(0, 8)})`);
+        console.log(`      Name: ${project.name}`);
+        if (project.description) {
+          console.log(`      Description: ${project.description.substring(0, 100)}${project.description.length > 100 ? '...' : ''}`);
+        }
+        if (project.created_by) {
+          console.log(`      Created by: ${project.created_by}`);
+        }
+        console.log(`      Created: ${new Date(project.created_at).toLocaleString()}`);
+        console.log('');
+      });
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
   });
 
 projects
   .command('get <project-id>')
-  .description('Get project details')
+  .description('Get project details (supports short UUIDs)')
   .action(async (projectId) => {
     checkEnv();
-    console.log('Would get project:', projectId);
+
+    try {
+      const response = await getProject(projectId);
+      const project = response.project;
+      const stats = response.stats || {};
+
+      console.log('');
+      console.log(`📁 ${project.display_name || project.name}`);
+      console.log('');
+      console.log(`   ID: ${project.id}`);
+      console.log(`   Name: ${project.name}`);
+      if (project.display_name) {
+        console.log(`   Display Name: ${project.display_name}`);
+      }
+      if (project.description) {
+        console.log(`   Description: ${project.description}`);
+      }
+      console.log('');
+      console.log(`   Created: ${new Date(project.created_at).toLocaleString()}`);
+      if (project.created_by) {
+        console.log(`   Created By: ${project.created_by}`);
+      }
+      console.log('');
+
+      // Display statistics
+      console.log('   📊 Statistics:');
+      console.log(`      Test Cases: ${stats.test_count || 0}`);
+      console.log(`      Bugs: ${stats.bug_count || 0} (Open: ${stats.open_bugs || 0})`);
+      console.log(`      Test Executions: ${stats.total_executions || 0} (Passed: ${stats.passed_count || 0})`);
+      if (stats.pass_rate !== undefined) {
+        console.log(`      Pass Rate: ${(stats.pass_rate * 100).toFixed(1)}%`);
+      }
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      if (error.response?.status === 404) {
+        console.error('   Project not found');
+      }
+      process.exit(1);
+    }
   });
 
 projects
   .command('create <name>')
   .description('Create new project')
   .option('--description <text>', 'Project description')
+  .option('--display-name <name>', 'Display name (user-friendly name)')
   .action(async (name, options) => {
     checkEnv();
-    console.log('Would create project:', { name, options });
+
+    try {
+      const data = {
+        name,
+        created_by: process.env.SAAC_HIVE_AGENT_NAME
+      };
+
+      if (options.description) {
+        data.description = options.description;
+      }
+
+      if (options.displayName) {
+        data.display_name = options.displayName;
+      }
+
+      const response = await createProject(data);
+
+      console.log('');
+      console.log('✅ Project created successfully');
+      console.log(`   ID: ${response.project.id.substring(0, 8)}`);
+      console.log(`   Name: ${response.project.name}`);
+      if (response.project.display_name) {
+        console.log(`   Display Name: ${response.project.display_name}`);
+      }
+      if (response.project.description) {
+        console.log(`   Description: ${response.project.description}`);
+      }
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      if (error.response?.data?.details) {
+        console.error(`   Details: ${error.response.data.details}`);
+      }
+      process.exit(1);
+    }
   });
 
 projects
   .command('stats <project-id>')
-  .description('Get project statistics')
+  .description('Get project statistics (supports short UUIDs)')
   .action(async (projectId) => {
     checkEnv();
-    console.log('Would get project stats:', projectId);
+
+    try {
+      const response = await getProject(projectId);
+      const project = response.project;
+      const stats = response.stats || {};
+
+      console.log('');
+      console.log(`📊 Statistics for ${project.display_name || project.name}`);
+      console.log('');
+      console.log(`   Project ID: ${project.id.substring(0, 8)}`);
+      console.log(`   Name: ${project.name}`);
+      console.log('');
+      console.log('   📈 Metrics:');
+      console.log(`      Test Cases: ${stats.test_count || 0}`);
+      console.log(`      Bugs Reported: ${stats.bug_count || 0}`);
+      console.log(`      Open Bugs: ${stats.open_bugs || 0}`);
+      console.log(`      Test Executions: ${stats.total_executions || 0}`);
+      console.log(`      Passed Executions: ${stats.passed_count || 0}`);
+      console.log(`      Failed Executions: ${(stats.total_executions || 0) - (stats.passed_count || 0)}`);
+      if (stats.pass_rate !== undefined) {
+        console.log(`      Overall Pass Rate: ${(stats.pass_rate * 100).toFixed(1)}%`);
+      }
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      if (error.response?.status === 404) {
+        console.error('   Project not found');
+      }
+      process.exit(1);
+    }
   });
 
 // ============================================================================

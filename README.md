@@ -2,7 +2,7 @@
 
 Official CLI for StartAnAiCompany Workspace Management - file storage with attachments, features, bugs, test cases, test executions, roadmaps, milestones, and project management.
 
-**Version:** 1.10.2
+**Version:** 1.11.0
 **License:** MIT
 **Homepage:** https://workspace.startanaicompany.com
 
@@ -1225,28 +1225,132 @@ workspace executions list --environment production --limit 30
 
 ### Support Tickets
 
-Manage customer support tickets (placeholder - full implementation coming soon).
+Manage customer support tickets for tracking customer issues, feature requests, and general inquiries.
 
 #### `workspace tickets list`
 
-List support tickets.
+List support tickets with filtering options.
 
 **Options:**
-- `--project <name>` - Filter by project
-- `--status <status>` - Filter by status
-- `--priority <level>` - Filter by priority
+- `--project-name <name>` - Filter by project name (a-z0-9)
+- `--project-id <id>` - Filter by project ID (short or long UUID)
+- `--status <status>` - Filter by status (new|open|pending|resolved|closed)
+- `--priority <level>` - Filter by priority (low|medium|high|urgent)
+- `--category <cat>` - Filter by category
+- `--customer-email <email>` - Filter by customer email
+- `--created-by <name>` - Filter by creator agent
+- `--tags <tags>` - Filter by tags (comma-separated)
+- `--limit <number>` - Max results (default: 50, max: 500)
+- `--offset <number>` - Skip first N results (default: 0)
+
+**Example:**
+
+```bash
+workspace tickets list --status open --priority high
+workspace tickets list --customer-email customer@example.com
+workspace tickets list --project-name myproject --limit 20
+```
 
 ---
 
-#### `workspace tickets create <title>`
+#### `workspace tickets create <subject>`
 
 Create new support ticket.
 
 **Options:**
-- `--project <name>` - Project name
-- `--description <text>` - Ticket description
-- `--priority <level>` - Priority (low|medium|high|urgent)
-- `--customer-email <email>` - Customer email
+- `--project <name>` - Project name (will lookup UUID automatically)
+- `--description <text>` - Ticket description (minimum 500 words) - **REQUIRED**
+- `--priority <level>` - Priority (low|medium|high|urgent, default: medium)
+- `--category <category>` - Category (bug|feature|question|other)
+- `--customer-email <email>` - Customer email address
+- `--customer-name <name>` - Customer name
+- `--source <source>` - Ticket source (web|email|api|chat)
+- `--tags <tags>` - Tags (comma-separated)
+
+**Example:**
+
+```bash
+workspace tickets create "Login page not loading" \
+  --project myproject \
+  --description "Customer reported that... [500+ words]" \
+  --priority high \
+  --category bug \
+  --customer-email user@example.com \
+  --customer-name "John Doe" \
+  --source email
+```
+
+---
+
+#### `workspace tickets get <ticket-id>`
+
+Get detailed ticket information including responses and attachments.
+
+**Example:**
+
+```bash
+workspace tickets get abc12345
+```
+
+**Output:**
+- Ticket subject, status, priority
+- Customer information
+- Description and timestamps
+- **Milestone attachments** (if linked to milestones)
+- **File attachments** (if any)
+
+---
+
+#### `workspace tickets update <ticket-id>`
+
+Update ticket status, priority, or other fields.
+
+**Options:**
+- `--status <status>` - New status (new|open|pending|resolved|closed)
+- `--priority <level>` - New priority (low|medium|high|urgent)
+- `--tags <tags>` - New tags (comma-separated)
+- `--project-id <id>` - Move to different project (short or long UUID)
+
+**Example:**
+
+```bash
+workspace tickets update abc12345 --status resolved
+workspace tickets update abc12345 --priority urgent --tags "critical,production"
+```
+
+---
+
+#### `workspace tickets respond <ticket-id> <message>`
+
+Add a response to a ticket.
+
+**Options:**
+- `--internal` - Mark response as internal note (not visible to customer, default: false)
+- `--responder-type <type>` - Responder type (agent|user|system, default: agent)
+
+**Example:**
+
+```bash
+workspace tickets respond abc12345 "We've deployed a fix to production. Please verify."
+workspace tickets respond abc12345 "Internal note: needs database migration" --internal
+```
+
+---
+
+#### `workspace tickets resolve <ticket-id>`
+
+Resolve a ticket with a resolution type.
+
+**Options:**
+- `--resolution-type <type>` - Resolution type (fixed|wont_fix|duplicate|by_design|not_reproducible) - **REQUIRED**
+- `--notes <text>` - Resolution notes
+
+**Example:**
+
+```bash
+workspace tickets resolve abc12345 --resolution-type fixed --notes "Fixed in version 2.1.0"
+workspace tickets resolve abc12345 --resolution-type duplicate --notes "Duplicate of ticket #xyz78901"
+```
 
 ---
 
@@ -1501,32 +1605,95 @@ workspace milestones remove-item mile1234 item5678
 
 ### Projects Management
 
-Manage and track projects (placeholder - full implementation coming soon).
+Organize and track test cases, bugs, and features within projects. Projects provide grouping and statistics for better organization.
 
 #### `workspace projects list`
 
-List all projects.
+List all projects with pagination.
+
+**Options:**
+- `--limit <number>` - Max results (default: 50)
+- `--offset <number>` - Skip first N results (default: 0)
+
+**Example:**
+
+```bash
+workspace projects list
+workspace projects list --limit 20 --offset 40
+```
+
+**Output:**
+- Project ID, name, and display name
+- Description (truncated)
+- Creator and creation date
 
 ---
 
 #### `workspace projects get <project-id>`
 
-Get project details.
+Get detailed project information including statistics (supports short UUIDs).
+
+**Example:**
+
+```bash
+workspace projects get abc12345
+workspace projects get abc12345-6789-abcd-ef01-234567890abc
+```
+
+**Output:**
+- Project details (ID, name, display name, description)
+- Creation information
+- **Statistics:**
+  - Test cases count
+  - Bugs count (total and open)
+  - Test executions (total and passed)
+  - Pass rate percentage
 
 ---
 
 #### `workspace projects create <name>`
 
-Create new project.
+Create a new project.
 
 **Options:**
 - `--description <text>` - Project description
+- `--display-name <name>` - Display name (user-friendly name)
+
+**Example:**
+
+```bash
+workspace projects create "myproject" \
+  --display-name "My Awesome Project" \
+  --description "Main application for customer management"
+```
+
+**Output:**
+- Project ID (short UUID)
+- Name and display name
+- Description
 
 ---
 
 #### `workspace projects stats <project-id>`
 
-Get project statistics.
+Get detailed project statistics (supports short UUIDs).
+
+**Example:**
+
+```bash
+workspace projects stats abc12345
+```
+
+**Output:**
+- Project name and ID
+- **Metrics:**
+  - Test cases count
+  - Bugs reported (total)
+  - Open bugs
+  - Test executions (total)
+  - Passed executions
+  - Failed executions
+  - Overall pass rate percentage
 
 ---
 
@@ -2042,6 +2209,23 @@ workspace test-cases create "Test" \
 ---
 
 ## Version History
+
+### v1.11.0 (2026-02-17)
+- **New:** Complete tickets system implementation (8 commands eliminated fake stubs)
+- **New:** Complete projects management implementation (4 commands)
+- **New:** `workspace tickets list` - List support tickets with comprehensive filters
+- **New:** `workspace tickets create` - Create support tickets (with 500-word validation)
+- **New:** `workspace tickets respond` - Add responses to tickets (internal/external)
+- **New:** `workspace tickets resolve` - Resolve tickets with resolution types
+- **New:** `workspace projects list` - List all projects with pagination
+- **New:** `workspace projects get` - Get project details with statistics (supports short UUIDs)
+- **New:** `workspace projects create` - Create new projects
+- **New:** `workspace projects stats` - Get detailed project statistics and metrics
+- **New:** 7 new API methods in api.js (listTickets, createTicket, respondToTicket, resolveTicket, listProjects, getProject, createProject)
+- **Improved:** Full documentation for all tickets and projects commands with examples
+- **Improved:** All commands properly call backend APIs (no more "Would..." stub messages)
+- **Fixed:** Removed duplicate executions command definitions
+- **Note:** Executions commands were already properly implemented (not stubs as initially thought)
 
 ### v1.10.2 (2026-02-17)
 - **New:** 500 word minimum validation for description fields on all CREATE commands

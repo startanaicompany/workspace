@@ -1,6 +1,6 @@
 {
   "name": "@startanaicompany/workspace",
-  "version": "1.10.2",
+  "version": "1.11.0",
   "description": "Official CLI for StartAnAiCompany Workspace Management - file storage with attachments, features, bugs, test cases, test executions, roadmaps, milestones, and project management",
   "main": "bin/workspace.js",
   "bin": {

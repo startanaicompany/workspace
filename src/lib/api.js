@@ -104,6 +104,35 @@ async function getProjectByName(projectName) {
 }
 
 /**
+ * List projects
+ */
+async function listProjects(filters = {}) {
+  const client = createClient();
+  const response = await client.get('/api/projects', {
+    params: filters
+  });
+  return response.data;
+}
+
+/**
+ * Get project by ID (supports short UUIDs)
+ */
+async function getProject(projectId) {
+  const client = createClient();
+  const response = await client.get(`/api/projects/${projectId}`);
+  return response.data;
+}
+
+/**
+ * Create project
+ */
+async function createProject(data) {
+  const client = createClient();
+  const response = await client.post('/api/projects', data);
+  return response.data;
+}
+
+/**
  * List features
  */
 async function listFeatures(filters = {}) {
@@ -363,6 +392,44 @@ async function updateTicket(ticketId, updates) {
   return response.data;
 }
 
+/**
+ * List tickets
+ */
+async function listTickets(filters = {}) {
+  const client = createClient();
+  const response = await client.get('/api/tickets', {
+    params: filters
+  });
+  return response.data;
+}
+
+/**
+ * Create ticket
+ */
+async function createTicket(data) {
+  const client = createClient();
+  const response = await client.post('/api/tickets', data);
+  return response.data;
+}
+
+/**
+ * Add response to ticket
+ */
+async function respondToTicket(ticketId, data) {
+  const client = createClient();
+  const response = await client.post(`/api/tickets/${ticketId}/respond`, data);
+  return response.data;
+}
+
+/**
+ * Resolve ticket
+ */
+async function resolveTicket(ticketId, data) {
+  const client = createClient();
+  const response = await client.post(`/api/tickets/${ticketId}/resolve`, data);
+  return response.data;
+}
+
 // ============================================================================
 // ROADMAPS - Roadmap planning with time boundaries
 // ============================================================================
@@ -570,6 +637,9 @@ module.exports = {
   deleteFile,
   updateFile,
   getProjectByName,
+  listProjects,
+  getProject,
+  createProject,
   listFeatures,
   createFeature,
   getFeature,
@@ -598,6 +668,10 @@ module.exports = {
   listExecutions,
   getTicket,
   updateTicket,
+  listTickets,
+  createTicket,
+  respondToTicket,
+  resolveTicket,
   listRoadmaps,
   createRoadmap,
   getRoadmap,
