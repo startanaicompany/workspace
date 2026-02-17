@@ -180,7 +180,7 @@ files
   .option('--tags <tags>', 'Filter by tags (comma-separated)')
   .option('--project-name <name>', 'Filter by project name (a-z0-9)')
   .option('--project-id <id>', 'Filter by project ID (short or long UUID)')
-  .option('--agent <name>', 'Filter by creator agent')
+  .option('--created-by <name>', 'Filter by creator agent')
   .option('--limit <number>', 'Max results (default: 50, max: 500)')
   .option('--offset <number>', 'Skip first N results (default: 0)')
   .action(async (options) => {
@@ -193,7 +193,7 @@ files
       if (options.tags) filters.tags = options.tags;
       if (options.projectName) filters.project_name = options.projectName;
       if (options.projectId) filters.project_id = options.projectId;
-      if (options.agent) filters.agent = options.agent;
+      if (options.createdBy) filters.created_by = options.createdBy;
       if (options.limit) filters.limit = parseInt(options.limit);
       if (options.offset) filters.offset = parseInt(options.offset);
 

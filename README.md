@@ -180,7 +180,7 @@ List all files with filtering and pagination.
 - `--tags <tags>` - Filter by tags (comma-separated)
 - `--project-name <name>` - Filter by project name (a-z0-9)
 - `--project-id <id>` - Filter by project ID (short or long UUID)
-- `--agent <name>` - Filter by creator agent
+- `--created-by <name>` - Filter by creator agent
 - `--limit <number>` - Max results (default: 50, max: 500)
 - `--offset <number>` - Skip first N results (default: 0)
 
@@ -200,7 +200,7 @@ workspace files list --path /app/storage/reports/
 workspace files list --project-name testproj01 --limit 20 --offset 0
 
 # List files created by specific agent
-workspace files list --agent my-agent
+workspace files list --created-by my-agent
 ```
 
 ---
@@ -1010,7 +1010,7 @@ workspace files list --limit 500
 
 | Command | Project Filters | Pagination | Domain Filters |
 |---------|----------------|------------|----------------|
-| `files list` | ✅ project-name, project-id | ✅ limit, offset | path, tags, agent, is_public |
+| `files list` | ✅ project-name, project-id | ✅ limit, offset | path, tags, created_by, is_public |
 | `features list` | ✅ project-name, project-id | ✅ limit, offset | status, priority |
 | `bugs list` | ✅ project-name, project-id | ✅ limit, offset | status, priority, severity, include-archived |
 | `test-cases list` | ✅ project-name, project-id | ✅ limit, offset | suite, status, priority, role |
