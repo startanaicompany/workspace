@@ -233,6 +233,71 @@ async function listBugComments(bugId) {
   return response.data;
 }
 
+/**
+ * List test cases
+ */
+async function listTestCases(filters = {}) {
+  const client = createClient();
+  const response = await client.get('/api/test-cases', {
+    params: filters
+  });
+  return response.data;
+}
+
+/**
+ * Create test case
+ */
+async function createTestCase(data) {
+  const client = createClient();
+  const response = await client.post('/api/test-cases', data);
+  return response.data;
+}
+
+/**
+ * Get test case details (includes steps)
+ */
+async function getTestCase(testCaseId) {
+  const client = createClient();
+  const response = await client.get(`/api/test-cases/${testCaseId}`);
+  return response.data;
+}
+
+/**
+ * Update test case
+ */
+async function updateTestCase(testCaseId, updates) {
+  const client = createClient();
+  const response = await client.put(`/api/test-cases/${testCaseId}`, updates);
+  return response.data;
+}
+
+/**
+ * Delete test case
+ */
+async function deleteTestCase(testCaseId) {
+  const client = createClient();
+  const response = await client.delete(`/api/test-cases/${testCaseId}`);
+  return response.data;
+}
+
+/**
+ * Add comment to test case
+ */
+async function addTestCaseComment(testCaseId, comment) {
+  const client = createClient();
+  const response = await client.post(`/api/test-cases/${testCaseId}/comments`, comment);
+  return response.data;
+}
+
+/**
+ * List test case comments
+ */
+async function listTestCaseComments(testCaseId) {
+  const client = createClient();
+  const response = await client.get(`/api/test-cases/${testCaseId}/comments`);
+  return response.data;
+}
+
 module.exports = {
   createClient,
   uploadFile,
@@ -255,5 +320,12 @@ module.exports = {
   updateBug,
   deleteBug,
   addBugComment,
-  listBugComments
+  listBugComments,
+  listTestCases,
+  createTestCase,
+  getTestCase,
+  updateTestCase,
+  deleteTestCase,
+  addTestCaseComment,
+  listTestCaseComments
 };

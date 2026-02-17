@@ -12,7 +12,7 @@ const { Command } = require('commander');
 const { readFileSync, writeFileSync } = require('fs');
 const { join, basename } = require('path');
 const { prepareFileForUpload, formatFileSize, formatExpiry } = require('../src/lib/fileUtils');
-const { uploadFile, downloadFile, listFiles, getFileMetadata, deleteFile: apiDeleteFile, updateFile: apiUpdateFile, getProjectByName, listFeatures, createFeature, getFeature, updateFeature, deleteFeature, addFeatureComment, listFeatureComments, listBugs, createBug, getBug, updateBug, deleteBug, addBugComment, listBugComments } = require('../src/lib/api');
+const { uploadFile, downloadFile, listFiles, getFileMetadata, deleteFile: apiDeleteFile, updateFile: apiUpdateFile, getProjectByName, listFeatures, createFeature, getFeature, updateFeature, deleteFeature, addFeatureComment, listFeatureComments, listBugs, createBug, getBug, updateBug, deleteBug, addBugComment, listBugComments, listTestCases, createTestCase, getTestCase, updateTestCase, deleteTestCase, addTestCaseComment, listTestCaseComments } = require('../src/lib/api');
 
 // Get package.json for version
 const packageJson = JSON.parse(
@@ -805,6 +805,246 @@ bugs
       console.log('');
       console.log('✅ Bug deleted successfully');
       console.log(`   ID: ${bugId}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+// ============================================================================
+// TEST CASES Commands
+// ============================================================================
+
+const testCases = program
+  .command('test-cases')
+  .alias('tests')
+  .description('Manage test cases');
+
+testCases
+  .command('list')
+  .description('List test cases')
+  .option('--project <name>', 'Filter by project')
+  .option('--suite <name>', 'Filter by suite')
+  .option('--priority <level>', 'Filter by priority')
+  .option('--role <name>', 'Filter by role')
+  .action(async (options) => {
+    checkEnv();
+
+    try {
+      const response = await listTestCases(options);
+
+      console.log('');
+      console.log(`📋 Test Cases (${response.count || response.testCases.length} found)`);
+      console.log('');
+
+      if (response.testCases.length === 0) {
+        console.log('   No test cases found');
+        console.log('');
+        return;
+      }
+
+      response.testCases.forEach(tc => {
+        const priorityEmoji = {
+          'low': '🟢',
+          'medium': '🟡',
+          'high': '🟠',
+          'critical': '🔴'
+        }[tc.priority] || '⚪';
+
+        console.log(`   📝 ${tc.name}`);
+        console.log(`      ID: ${tc.id.substring(0, 8)}`);
+        console.log(`      Suite: ${tc.suite_name} | Priority: ${priorityEmoji} ${tc.priority}`);
+        console.log(`      Project: ${tc.project_name}`);
+        console.log('');
+      });
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+testCases
+  .command('create <name>')
+  .description('Create new test case with steps')
+  .option('--project <name>', 'Project name (required)')
+  .option('--suite <name>', 'Suite name (default: General)')
+  .option('--description <text>', 'Test description')
+  .option('--priority <level>', 'Priority (low|medium|high|critical)')
+  .option('--role <name>', 'User role for testing')
+  .option('--page-url <url>', 'Page URL to test')
+  .option('--tags <tags>', 'Comma-separated tags')
+  .option('--steps <json>', 'Steps as JSON array (required for meaningful tests!)')
+  .action(async (name, options) => {
+    checkEnv();
+
+    try {
+      if (!options.project) {
+        console.error('❌ Error: --project is required');
+        process.exit(1);
+      }
+
+      console.log(`📝 Creating test case: ${name}`);
+      console.log('');
+
+      // Parse steps if provided
+      let steps = [];
+      if (options.steps) {
+        try {
+          steps = JSON.parse(options.steps);
+        } catch (e) {
+          console.error('❌ Error: Invalid JSON for --steps');
+          console.error('   Example: --steps \'[{"step_number":1,"description":"Click login","expected_result":"Form appears"}]\'');
+          process.exit(1);
+        }
+      }
+
+      const data = {
+        name,
+        project: options.project,
+        suite: options.suite,
+        description: options.description,
+        priority: options.priority || 'medium',
+        role: options.role,
+        page_url: options.pageUrl,
+        tags: options.tags ? options.tags.split(',') : [],
+        created_by: process.env.SAAC_HIVE_AGENT_NAME,
+        steps
+      };
+
+      const response = await createTestCase(data);
+
+      console.log('✅ Test case created successfully!');
+      console.log('');
+      console.log(`   ID: ${response.testCase.id.substring(0, 8)}`);
+      console.log(`   Name: ${response.testCase.name}`);
+      console.log(`   Priority: ${response.testCase.priority}`);
+      if (steps.length > 0) {
+        console.log(`   Steps: ${steps.length} steps created`);
+      }
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      if (error.response?.data?.details) {
+        console.error('   Details:', error.response.data.details);
+      }
+      process.exit(1);
+    }
+  });
+
+testCases
+  .command('get <test-case-id>')
+  .description('Get test case details with steps')
+  .action(async (testCaseId) => {
+    checkEnv();
+
+    try {
+      const response = await getTestCase(testCaseId);
+      const tc = response.testCase;
+
+      console.log('');
+      console.log(`📝 ${tc.name}`);
+      console.log('');
+      console.log(`   ID: ${tc.id}`);
+      console.log(`   Suite: ${tc.suite_name}`);
+      console.log(`   Project: ${tc.project_name}`);
+      console.log(`   Priority: ${tc.priority}`);
+      if (tc.role_name) {
+        console.log(`   Role: ${tc.role_name}`);
+      }
+      console.log('');
+
+      if (tc.description) {
+        console.log(`   Description: ${tc.description}`);
+        console.log('');
+      }
+
+      if (tc.page_url) {
+        console.log(`   Page URL: ${tc.page_url}`);
+        console.log('');
+      }
+
+      // Display steps
+      if (response.steps && response.steps.length > 0) {
+        console.log(`   📋 Steps (${response.steps.length}):`);
+        console.log('');
+        response.steps.forEach(step => {
+          const critical = step.is_critical ? ' ⚠️' : '';
+          console.log(`      ${step.step_number}. ${step.description}${critical}`);
+          if (step.expected_result) {
+            console.log(`         Expected: ${step.expected_result}`);
+          }
+          console.log('');
+        });
+      }
+
+      // Display recent executions if any
+      if (response.recent_executions && response.recent_executions.length > 0) {
+        console.log(`   🚀 Recent Executions (${response.recent_executions.length}):`);
+        console.log('');
+        response.recent_executions.forEach(exec => {
+          const statusEmoji = exec.status === 'passed' ? '✅' : exec.status === 'failed' ? '❌' : '⏭️';
+          console.log(`      ${statusEmoji} ${exec.status} - ${new Date(exec.started_at).toLocaleString()}`);
+        });
+        console.log('');
+      }
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      if (error.response?.status === 404) {
+        console.error('   Test case not found');
+      }
+      process.exit(1);
+    }
+  });
+
+testCases
+  .command('update <test-case-id>')
+  .description('Update test case')
+  .option('--name <text>', 'New name')
+  .option('--description <text>', 'New description')
+  .option('--priority <level>', 'New priority')
+  .option('--active <boolean>', 'Set active status (true/false)')
+  .action(async (testCaseId, options) => {
+    checkEnv();
+
+    try {
+      const updates = {};
+
+      if (options.name) updates.name = options.name;
+      if (options.description) updates.description = options.description;
+      if (options.priority) updates.priority = options.priority;
+      if (options.active !== undefined) updates.is_active = options.active === 'true';
+
+      const response = await updateTestCase(testCaseId, updates);
+
+      console.log('');
+      console.log('✅ Test case updated successfully');
+      console.log(`   ID: ${response.testCase.id.substring(0, 8)}`);
+      console.log(`   Name: ${response.testCase.name}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+testCases
+  .command('delete <test-case-id>')
+  .description('Delete test case')
+  .action(async (testCaseId) => {
+    checkEnv();
+
+    try {
+      await deleteTestCase(testCaseId);
+
+      console.log('');
+      console.log('✅ Test case deleted successfully');
+      console.log(`   ID: ${testCaseId}`);
       console.log('');
 
     } catch (error) {
