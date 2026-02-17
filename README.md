@@ -837,7 +837,7 @@ List test executions with filtering and pagination.
 - `--project-name <name>` - Filter by project name (a-z0-9)
 - `--project-id <id>` - Filter by project ID (short or long UUID)
 - `--status <status>` - Filter by status (running|passed|failed|skipped)
-- `--agent <name>` - Filter by executor agent
+- `--created-by <name>` - Filter by executor agent
 - `--environment <env>` - Filter by environment
 - `--limit <number>` - Max results (default: 50, max: 500)
 - `--offset <number>` - Skip first N results (default: 0)
@@ -855,7 +855,7 @@ workspace executions list --status running
 workspace executions list --project-name testproj01
 
 # List executions by agent
-workspace executions list --agent my-qa-bot
+workspace executions list --created-by my-qa-bot
 
 # List production executions
 workspace executions list --environment production --limit 30
@@ -1017,7 +1017,7 @@ workspace files list --limit 500
 | `features list` | ✅ project-name, project-id | ✅ limit, offset | status, priority, created_by |
 | `bugs list` | ✅ project-name, project-id | ✅ limit, offset | status, priority, severity, created_by, include-archived |
 | `test-cases list` | ✅ project-name, project-id | ✅ limit, offset | suite, status, priority, role, created_by |
-| `executions list` | ✅ project-name, project-id | ✅ limit, offset | status, agent, environment |
+| `executions list` | ✅ project-name, project-id | ✅ limit, offset | status, created_by, environment |
 
 ---
 

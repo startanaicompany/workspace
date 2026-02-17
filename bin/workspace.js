@@ -1313,7 +1313,7 @@ executions
   .option('--project-name <name>', 'Filter by project name (a-z0-9)')
   .option('--project-id <id>', 'Filter by project ID (short or long UUID)')
   .option('--status <status>', 'Filter by status (running|passed|failed|skipped)')
-  .option('--agent <name>', 'Filter by executor')
+  .option('--created-by <name>', 'Filter by executor agent')
   .option('--environment <env>', 'Filter by environment')
   .option('--limit <number>', 'Max results (default: 50, max: 500)')
   .option('--offset <number>', 'Skip first N results (default: 0)')
@@ -1326,7 +1326,7 @@ executions
       if (options.projectName) filters.project_name = options.projectName;
       if (options.projectId) filters.project_id = options.projectId;
       if (options.status) filters.status = options.status;
-      if (options.agent) filters.agent = options.agent;
+      if (options.createdBy) filters.agent = options.createdBy; // Maps to agent field in backend
       if (options.environment) filters.environment = options.environment;
       if (options.limit) filters.limit = parseInt(options.limit);
       if (options.offset) filters.offset = parseInt(options.offset);
