@@ -301,6 +301,7 @@ npm publish --access public
 
 ## Version History
 
+- **v1.8.1** - Updated status enum values to match backend schema (bugs, features, tickets, executions)
 - **v1.8.0** - Tags and project_id update support for all resources (files, features, bugs, test-cases, tickets)
 - **v1.7.0** - Suite system removed (tags only for AI agents)
 - **v1.6.0** - Dual project filtering, pagination, created_by standardization, manual command

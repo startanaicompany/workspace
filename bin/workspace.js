@@ -537,7 +537,7 @@ features
 features
   .command('update <feature-id>')
   .description('Update feature request')
-  .option('--status <status>', 'New status (requested|in_progress|completed|rejected)')
+  .option('--status <status>', 'New status (requested|planned|in_progress|completed|rejected)')
   .option('--priority <level>', 'New priority (low|medium|high|critical)')
   .option('--description <text>', 'New description')
   .option('--tags <tags>', 'New tags (comma-separated)')
@@ -641,7 +641,7 @@ bugs
   .description('List bugs')
   .option('--project-name <name>', 'Filter by project name (a-z0-9)')
   .option('--project-id <id>', 'Filter by project ID (short or long UUID)')
-  .option('--status <status>', 'Filter by status (open|in_progress|resolved|closed|archived)')
+  .option('--status <status>', 'Filter by status (open|in_progress|fixed|verified|closed|wont_fix|duplicate|archived)')
   .option('--priority <level>', 'Filter by priority (low|medium|high|critical)')
   .option('--severity <level>', 'Filter by severity (low|medium|high|critical)')
   .option('--created-by <name>', 'Filter by creator agent')
@@ -801,7 +801,7 @@ bugs
 bugs
   .command('update <bug-id>')
   .description('Update bug')
-  .option('--status <status>', 'New status (open|in_progress|resolved|closed)')
+  .option('--status <status>', 'New status (open|in_progress|fixed|verified|closed|wont_fix|duplicate|archived)')
   .option('--severity <level>', 'New severity (low|medium|high|critical)')
   .option('--description <text>', 'New description')
   .option('--tags <tags>', 'New tags (comma-separated)')
@@ -1351,7 +1351,7 @@ executions
   .description('List test executions')
   .option('--project-name <name>', 'Filter by project name (a-z0-9)')
   .option('--project-id <id>', 'Filter by project ID (short or long UUID)')
-  .option('--status <status>', 'Filter by status (running|passed|failed|skipped)')
+  .option('--status <status>', 'Filter by status (pending|running|passed|failed|skipped)')
   .option('--created-by <name>', 'Filter by executor agent')
   .option('--environment <env>', 'Filter by environment')
   .option('--limit <number>', 'Max results (default: 50, max: 500)')
@@ -1468,8 +1468,8 @@ tickets
 tickets
   .command('update <ticket-id>')
   .description('Update ticket')
-  .option('--status <status>', 'New status')
-  .option('--priority <level>', 'New priority')
+  .option('--status <status>', 'New status (new|open|pending|resolved|closed)')
+  .option('--priority <level>', 'New priority (low|medium|high|urgent)')
   .option('--tags <tags>', 'New tags (comma-separated)')
   .option('--project-id <id>', 'Move to different project (short or long UUID)')
   .action(async (ticketId, options) => {
