@@ -13,6 +13,7 @@ const { readFileSync, writeFileSync } = require('fs');
 const { join, basename } = require('path');
 const { prepareFileForUpload, formatFileSize, formatExpiry } = require('../src/lib/fileUtils');
 const { uploadFile, downloadFile, listFiles, getFileMetadata, deleteFile: apiDeleteFile, updateFile: apiUpdateFile, getProjectByName, listFeatures, createFeature, getFeature, updateFeature, deleteFeature, addFeatureComment, listFeatureComments, listBugs, createBug, getBug, updateBug, deleteBug, addBugComment, listBugComments, listTestCases, createTestCase, getTestCase, updateTestCase, deleteTestCase, addTestCaseComment, listTestCaseComments, startExecution, updateExecutionStep, completeExecution, getExecution, listExecutions } = require('../src/lib/api');
+const axios = require('axios');
 
 // Get package.json for version
 const packageJson = JSON.parse(
@@ -1484,6 +1485,61 @@ projects
   .action(async (projectId) => {
     checkEnv();
     console.log('Would get project stats:', projectId);
+  });
+
+// ============================================================================
+// MANUAL Command - Fetch full documentation from GitHub
+// ============================================================================
+program
+  .command('manual')
+  .description('Display full documentation from GitHub')
+  .action(async () => {
+    try {
+      console.log('');
+      console.log('📖 Workspace CLI Manual');
+      console.log('');
+      console.log('⏳ Fetching documentation from GitHub...');
+      console.log('');
+
+      try {
+        // Fetch README from GitHub
+        const response = await axios.get(
+          'https://raw.githubusercontent.com/startanaicompany/workspace/main/README.md',
+          { timeout: 10000 }
+        );
+
+        console.log('✅ Documentation loaded');
+        console.log('');
+        console.log('─'.repeat(80));
+        console.log('');
+
+        // Display the README content
+        console.log(response.data);
+
+        console.log('');
+        console.log('─'.repeat(80));
+        console.log('');
+        console.log('💡 Online documentation: https://github.com/startanaicompany/workspace');
+        console.log('');
+
+      } catch (error) {
+        console.log('❌ Failed to fetch documentation');
+        console.log('');
+        console.log('Could not fetch README from GitHub');
+        console.log('');
+        console.log('Visit the documentation online:');
+        console.log('  https://github.com/startanaicompany/workspace');
+        console.log('');
+        console.log('Or run:');
+        console.log('  workspace --help');
+        console.log('');
+
+        process.exit(1);
+      }
+    } catch (error) {
+      console.error('❌ Error:', error.message);
+      process.exit(1);
+    }
   });
 
 // ============================================================================
