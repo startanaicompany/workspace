@@ -272,7 +272,7 @@ files
         console.log(`   📄 ${file.filename}`);
         console.log(`      Path: ${file.path}`);
         console.log(`      Size: ${formatFileSize(file.size)} | Type: ${file.content_type}`);
-        console.log(`      Created: ${new Date(file.created_at).toLocaleString()} by ${file.created_by_agent_name}`);
+        console.log(`      Created: ${new Date(file.created_at).toLocaleString()} by ${file.created_by || 'N/A'}`);
         console.log(`      Expires: ${expiresFormatted}`);
         if (file.tags && file.tags.length > 0) {
           console.log(`      Tags: ${file.tags.join(', ')}`);
@@ -518,7 +518,7 @@ features
         console.log(`      ID: ${feature.id}`);
         console.log(`      Project: ${feature.project || 'N/A'} | Priority: ${priorityColor} ${feature.priority || 'N/A'}`);
         console.log(`      Status: ${feature.status || 'requested'}`);
-        console.log(`      Created: ${new Date(feature.created_at).toLocaleString()} by ${feature.created_by_agent}`);
+        console.log(`      Created: ${new Date(feature.created_at).toLocaleString()} by ${feature.created_by || 'N/A'}`);
         if (feature.updated_at && feature.updated_at !== feature.created_at) {
           console.log(`      Updated: ${new Date(feature.updated_at).toLocaleString()}`);
         }
