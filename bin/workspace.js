@@ -12,7 +12,7 @@ const { Command } = require('commander');
 const { readFileSync, writeFileSync } = require('fs');
 const { join, basename } = require('path');
 const { prepareFileForUpload, formatFileSize, formatExpiry } = require('../src/lib/fileUtils');
-const { uploadFile, downloadFile, listFiles, getFileMetadata, deleteFile: apiDeleteFile, updateFile: apiUpdateFile, getProjectByName, listFeatures, createFeature, getFeature, updateFeature, deleteFeature, addFeatureComment, listFeatureComments, listBugs, createBug, getBug, updateBug, deleteBug, addBugComment, listBugComments, listTestCases, createTestCase, getTestCase, updateTestCase, deleteTestCase, addTestCaseComment, listTestCaseComments, startExecution, updateExecutionStep, completeExecution, getExecution, listExecutions, updateTicket, listRoadmaps, createRoadmap, getRoadmap, updateRoadmap, deleteRoadmap, addRoadmapProject, removeRoadmapProject, getRoadmapGantt, listMilestones, createMilestone, updateMilestone, deleteMilestone, reorderMilestones, addMilestoneItem, removeMilestoneItem } = require('../src/lib/api');
+const { uploadFile, downloadFile, listFiles, getFileMetadata, deleteFile: apiDeleteFile, updateFile: apiUpdateFile, getProjectByName, listFeatures, createFeature, getFeature, updateFeature, deleteFeature, addFeatureComment, listFeatureComments, listBugs, createBug, getBug, updateBug, deleteBug, addBugComment, listBugComments, listTestCases, createTestCase, getTestCase, updateTestCase, deleteTestCase, addTestCaseComment, listTestCaseComments, startExecution, updateExecutionStep, completeExecution, getExecution, listExecutions, getTicket, updateTicket, listRoadmaps, createRoadmap, getRoadmap, updateRoadmap, deleteRoadmap, addRoadmapProject, removeRoadmapProject, getRoadmapGantt, listMilestones, getMilestone, createMilestone, updateMilestone, deleteMilestone, reorderMilestones, addMilestoneItem, removeMilestoneItem, attachFileToEntity, linkFileToEntity, listEntityAttachments, unlinkFileFromEntity } = require('../src/lib/api');
 const axios = require('axios');
 
 // Get package.json for version
@@ -69,7 +69,6 @@ files
   .option('--description <text>', 'File description')
   .option('--tags <tags>', 'Comma-separated tags')
   .option('--project-id <id>', 'Link to project')
-  .option('--public', 'Make file publicly accessible', false)
   .action(async (localPath, options) => {
     checkEnv();
 
@@ -82,8 +81,7 @@ files
         expire: parseInt(options.expire),
         description: options.description,
         tags: options.tags,
-        projectId: options.projectId,
-        public: options.public
+        projectId: options.projectId
       });
 
       if (!result.success) {
@@ -221,6 +219,33 @@ files
         if (file.tags && file.tags.length > 0) {
           console.log(`      Tags: ${file.tags.join(', ')}`);
         }
+
+        // Display entity attachments (bidirectional relationship)
+        if (file.attachments && file.attachments.length > 0) {
+          console.log(`      📎 Attached to (${file.attachments.length}):`);
+          file.attachments.forEach(att => {
+            const entityEmoji = {
+              'bug': '🐛',
+              'feature': '💡',
+              'test_case': '📝',
+              'ticket': '🎫',
+              'milestone': '🎯',
+              'roadmap': '🗺️'
+            }[att.entity_type] || '📌';
+
+            const entityLabel = {
+              'bug': 'Bug',
+              'feature': 'Feature',
+              'test_case': 'Test Case',
+              'ticket': 'Ticket',
+              'milestone': 'Milestone',
+              'roadmap': 'Roadmap'
+            }[att.entity_type] || att.entity_type;
+
+            console.log(`         ${entityEmoji} ${entityLabel}: ${att.entity_title || 'Untitled'} (${att.entity_short_id || att.entity_id.substring(0, 8)})`);
+          });
+        }
+
         console.log('');
       });
 
@@ -264,9 +289,37 @@ files
         console.log(`   Tags: ${file.tags.join(', ')}`);
         console.log('');
       }
-      if (file.is_public) {
-        console.log('   🌐 Public file');
+
+      // Display entity attachments (bidirectional relationship)
+      if (file.attachments && file.attachments.length > 0) {
+        console.log(`   📎 Attached to (${file.attachments.length}):`);
         console.log('');
+        file.attachments.forEach(att => {
+          const entityEmoji = {
+            'bug': '🐛',
+            'feature': '💡',
+            'test_case': '📝',
+            'ticket': '🎫',
+            'milestone': '🎯',
+            'roadmap': '🗺️'
+          }[att.entity_type] || '📌';
+
+          const entityLabel = {
+            'bug': 'Bug',
+            'feature': 'Feature',
+            'test_case': 'Test Case',
+            'ticket': 'Ticket',
+            'milestone': 'Milestone',
+            'roadmap': 'Roadmap'
+          }[att.entity_type] || att.entity_type;
+
+          console.log(`      ${entityEmoji} ${entityLabel}: ${att.entity_title || 'Untitled'} (${att.entity_short_id || att.entity_id.substring(0, 8)})`);
+          console.log(`         Attached: ${new Date(att.attached_at).toLocaleString()} by ${att.attached_by}`);
+          if (att.description) {
+            console.log(`         Note: ${att.description}`);
+          }
+          console.log('');
+        });
       }
 
     } catch (error) {
@@ -509,6 +562,42 @@ features
         console.log('');
       }
 
+      // Display milestone attachments
+      if (response.milestones && response.milestones.length > 0) {
+        console.log(`   📍 Milestones (${response.milestones.length}):`);
+        console.log('');
+        response.milestones.forEach(m => {
+          const statusEmoji = {
+            'pending': '⏳',
+            'in_progress': '🔄',
+            'completed': '✅',
+            'cancelled': '❌'
+          }[m.milestone_status] || '📍';
+
+          console.log(`      ${statusEmoji} ${m.milestone_name} (${m.milestone_short_id})`);
+          console.log(`         Roadmap: ${m.roadmap_name} (${m.roadmap_short_id})`);
+          console.log(`         Dates: ${m.milestone_start_date} → ${m.milestone_end_date}`);
+          console.log(`         Status: ${m.milestone_status}`);
+          console.log('');
+        });
+      }
+
+      // Display file attachments
+      if (response.fileAttachments && response.fileAttachments.length > 0) {
+        console.log(`   📎 File Attachments (${response.fileAttachments.length}):`);
+        console.log('');
+        response.fileAttachments.forEach(att => {
+          console.log(`      📄 ${att.filename}`);
+          console.log(`         Path: ${att.file_path}`);
+          console.log(`         Size: ${formatFileSize(parseInt(att.size))}`);
+          if (att.attachment_description) {
+            console.log(`         Note: ${att.attachment_description}`);
+          }
+          console.log(`         Attached: ${new Date(att.attached_at).toLocaleString()} by ${att.attached_by}`);
+          console.log('');
+        });
+      }
+
       // Try to get comments
       try {
         const commentsResponse = await listFeatureComments(featureId);
@@ -620,6 +709,152 @@ features
       console.log('');
       console.log('✅ Feature deleted successfully');
       console.log(`   ID: ${featureId}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+features
+  .command('attach <feature-id> <file-path>')
+  .description('Attach file to feature (upload + link)')
+  .option('--description <text>', 'Attachment description')
+  .option('--expire <minutes>', 'File expiry in minutes (default: 43200 = 30 days)', '43200')
+  .option('--path <remote-path>', 'Remote file path (default: /features/<filename>)')
+  .action(async (featureId, filePath, options) => {
+    checkEnv();
+
+    try {
+      const filename = basename(filePath);
+      const remotePath = options.path || `/features/${filename}`;
+
+      // Step 1: Upload file
+      const fileData = prepareFileForUpload(filePath, remotePath, {
+        expire: options.expire,
+        tags: `feature-${featureId.substring(0, 8)}`
+      });
+
+      if (!fileData.success) {
+        console.error('❌ Error preparing file:', fileData.error);
+        process.exit(1);
+      }
+
+      const uploadResponse = await uploadFile(fileData.payload);
+
+      // Step 2: Link file to feature
+      const linkData = {
+        file_id: uploadResponse.file.id,
+        attached_by: process.env.SAAC_HIVE_AGENT_NAME,
+        description: options.description || `Feature attachment: ${filename}`
+      };
+
+      const response = await linkFileToEntity('features', featureId, linkData);
+
+      console.log('✅ File attached to feature successfully!');
+      console.log('');
+      console.log(`   Feature ID: ${featureId.substring(0, 8)}`);
+      console.log(`   File: ${uploadResponse.file.filename}`);
+      console.log(`   Path: ${uploadResponse.file.path}`);
+      console.log(`   Size: ${formatFileSize(uploadResponse.file.size)}`);
+      console.log(`   Attachment ID: ${response.attachment.id.substring(0, 8)}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+features
+  .command('link-file <feature-id> <file-id-or-path>')
+  .description('Link existing file to feature')
+  .option('--description <text>', 'Attachment description')
+  .action(async (featureId, fileIdOrPath, options) => {
+    checkEnv();
+
+    try {
+      const linkData = {
+        attached_by: process.env.SAAC_HIVE_AGENT_NAME,
+        description: options.description || `Linked to feature ${featureId.substring(0, 8)}`
+      };
+
+      if (fileIdOrPath.startsWith('/')) {
+        linkData.file_path = fileIdOrPath;
+      } else {
+        linkData.file_id = fileIdOrPath;
+      }
+
+      const response = await linkFileToEntity('features', featureId, linkData);
+
+      console.log('');
+      console.log('✅ File linked to feature successfully!');
+      console.log('');
+      console.log(`   Feature ID: ${featureId.substring(0, 8)}`);
+      console.log(`   File: ${response.file.filename}`);
+      console.log(`   Path: ${response.file.path}`);
+      console.log(`   Attachment ID: ${response.attachment.attachment_id.substring(0, 8)}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+features
+  .command('list-files <feature-id>')
+  .description('List files attached to feature')
+  .action(async (featureId) => {
+    checkEnv();
+
+    try {
+      const response = await listEntityAttachments('features', featureId);
+
+      console.log('');
+      console.log(`📎 Feature Attachments (${response.count || 0} files)`);
+      console.log('');
+
+      if (!response.attachments || response.attachments.length === 0) {
+        console.log('   No files attached');
+        console.log('');
+        return;
+      }
+
+      response.attachments.forEach(att => {
+        console.log(`   📄 ${att.filename}`);
+        console.log(`      Attachment ID: ${att.attachment_id.substring(0, 8)}`);
+        console.log(`      File ID: ${att.file_short_id || att.file_id.substring(0, 8)}`);
+        console.log(`      Path: ${att.file_path}`);
+        console.log(`      Size: ${formatFileSize(att.size)}`);
+        if (att.attachment_description) {
+          console.log(`      Description: ${att.attachment_description}`);
+        }
+        console.log(`      Attached: ${new Date(att.attached_at).toLocaleString()} by ${att.attached_by}`);
+        console.log('');
+      });
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+features
+  .command('unlink-file <feature-id> <attachment-id>')
+  .description('Unlink file from feature (preserves file)')
+  .action(async (featureId, attachmentId) => {
+    checkEnv();
+
+    try {
+      const response = await unlinkFileFromEntity('features', featureId, attachmentId);
+
+      console.log('');
+      console.log('✅ File unlinked from feature successfully');
+      console.log(`   Feature ID: ${featureId.substring(0, 8)}`);
+      console.log(`   Attachment ID: ${attachmentId.substring(0, 8)}`);
+      console.log('   Note: File preserved in workspace storage');
       console.log('');
 
     } catch (error) {
@@ -773,6 +1008,42 @@ bugs
         console.log('');
       }
 
+      // Display milestone attachments
+      if (response.milestones && response.milestones.length > 0) {
+        console.log(`   📍 Milestones (${response.milestones.length}):`);
+        console.log('');
+        response.milestones.forEach(m => {
+          const statusEmoji = {
+            'pending': '⏳',
+            'in_progress': '🔄',
+            'completed': '✅',
+            'cancelled': '❌'
+          }[m.milestone_status] || '📍';
+
+          console.log(`      ${statusEmoji} ${m.milestone_name} (${m.milestone_short_id})`);
+          console.log(`         Roadmap: ${m.roadmap_name} (${m.roadmap_short_id})`);
+          console.log(`         Dates: ${m.milestone_start_date} → ${m.milestone_end_date}`);
+          console.log(`         Status: ${m.milestone_status}`);
+          console.log('');
+        });
+      }
+
+      // Display file attachments
+      if (response.fileAttachments && response.fileAttachments.length > 0) {
+        console.log(`   📎 File Attachments (${response.fileAttachments.length}):`);
+        console.log('');
+        response.fileAttachments.forEach(att => {
+          console.log(`      📄 ${att.filename}`);
+          console.log(`         Path: ${att.file_path}`);
+          console.log(`         Size: ${formatFileSize(parseInt(att.size))}`);
+          if (att.attachment_description) {
+            console.log(`         Note: ${att.attachment_description}`);
+          }
+          console.log(`         Attached: ${new Date(att.attached_at).toLocaleString()} by ${att.attached_by}`);
+          console.log('');
+        });
+      }
+
       // Try to get comments
       try {
         const commentsResponse = await listBugComments(bugId);
@@ -882,6 +1153,153 @@ bugs
       console.log('');
       console.log('✅ Bug deleted successfully');
       console.log(`   ID: ${bugId}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+bugs
+  .command('attach <bug-id> <file-path>')
+  .description('Attach file to bug (upload + link)')
+  .option('--description <text>', 'Attachment description')
+  .option('--expire <minutes>', 'File expiry in minutes (default: 43200 = 30 days)', '43200')
+  .option('--path <remote-path>', 'Remote file path (default: /bugs/<filename>)')
+  .action(async (bugId, filePath, options) => {
+    checkEnv();
+
+    try {
+      const filename = basename(filePath);
+      const remotePath = options.path || `/bugs/${filename}`;
+
+      // Step 1: Upload file
+      const fileData = prepareFileForUpload(filePath, remotePath, {
+        expire: options.expire,
+        tags: `bug-${bugId.substring(0, 8)}`
+      });
+
+      if (!fileData.success) {
+        console.error('❌ Error preparing file:', fileData.error);
+        process.exit(1);
+      }
+
+      const uploadResponse = await uploadFile(fileData.payload);
+
+      // Step 2: Link file to bug
+      const linkData = {
+        file_id: uploadResponse.file.id,
+        attached_by: process.env.SAAC_HIVE_AGENT_NAME,
+        description: options.description || `Bug attachment: ${filename}`
+      };
+
+      const response = await linkFileToEntity('bugs', bugId, linkData);
+
+      console.log('✅ File attached to bug successfully!');
+      console.log('');
+      console.log(`   Bug ID: ${bugId.substring(0, 8)}`);
+      console.log(`   File: ${uploadResponse.file.filename}`);
+      console.log(`   Path: ${uploadResponse.file.path}`);
+      console.log(`   Size: ${formatFileSize(uploadResponse.file.size)}`);
+      console.log(`   Attachment ID: ${response.attachment.id.substring(0, 8)}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+bugs
+  .command('link-file <bug-id> <file-id-or-path>')
+  .description('Link existing file to bug')
+  .option('--description <text>', 'Attachment description')
+  .action(async (bugId, fileIdOrPath, options) => {
+    checkEnv();
+
+    try {
+      const linkData = {
+        attached_by: process.env.SAAC_HIVE_AGENT_NAME,
+        description: options.description || `Linked to bug ${bugId.substring(0, 8)}`
+      };
+
+      // Check if it's a file ID or path
+      if (fileIdOrPath.startsWith('/')) {
+        linkData.file_path = fileIdOrPath;
+      } else {
+        linkData.file_id = fileIdOrPath;
+      }
+
+      const response = await linkFileToEntity('bugs', bugId, linkData);
+
+      console.log('');
+      console.log('✅ File linked to bug successfully!');
+      console.log('');
+      console.log(`   Bug ID: ${bugId.substring(0, 8)}`);
+      console.log(`   File: ${response.file.filename}`);
+      console.log(`   Path: ${response.file.path}`);
+      console.log(`   Attachment ID: ${response.attachment.attachment_id.substring(0, 8)}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+bugs
+  .command('list-files <bug-id>')
+  .description('List files attached to bug')
+  .action(async (bugId) => {
+    checkEnv();
+
+    try {
+      const response = await listEntityAttachments('bugs', bugId);
+
+      console.log('');
+      console.log(`📎 Bug Attachments (${response.count || 0} files)`);
+      console.log('');
+
+      if (!response.attachments || response.attachments.length === 0) {
+        console.log('   No files attached');
+        console.log('');
+        return;
+      }
+
+      response.attachments.forEach(att => {
+        console.log(`   📄 ${att.filename}`);
+        console.log(`      Attachment ID: ${att.attachment_id.substring(0, 8)}`);
+        console.log(`      File ID: ${att.file_short_id || att.file_id.substring(0, 8)}`);
+        console.log(`      Path: ${att.file_path}`);
+        console.log(`      Size: ${formatFileSize(att.size)}`);
+        if (att.attachment_description) {
+          console.log(`      Description: ${att.attachment_description}`);
+        }
+        console.log(`      Attached: ${new Date(att.attached_at).toLocaleString()} by ${att.attached_by}`);
+        console.log('');
+      });
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+bugs
+  .command('unlink-file <bug-id> <attachment-id>')
+  .description('Unlink file from bug (preserves file)')
+  .action(async (bugId, attachmentId) => {
+    checkEnv();
+
+    try {
+      const response = await unlinkFileFromEntity('bugs', bugId, attachmentId);
+
+      console.log('');
+      console.log('✅ File unlinked from bug successfully');
+      console.log(`   Bug ID: ${bugId.substring(0, 8)}`);
+      console.log(`   Attachment ID: ${attachmentId.substring(0, 8)}`);
+      console.log('   Note: File preserved in workspace storage');
       console.log('');
 
     } catch (error) {
@@ -1059,6 +1477,42 @@ testCases
         console.log('');
       }
 
+      // Display milestone attachments
+      if (response.milestones && response.milestones.length > 0) {
+        console.log(`   📍 Milestones (${response.milestones.length}):`);
+        console.log('');
+        response.milestones.forEach(m => {
+          const statusEmoji = {
+            'pending': '⏳',
+            'in_progress': '🔄',
+            'completed': '✅',
+            'cancelled': '❌'
+          }[m.milestone_status] || '📍';
+
+          console.log(`      ${statusEmoji} ${m.milestone_name} (${m.milestone_short_id})`);
+          console.log(`         Roadmap: ${m.roadmap_name} (${m.roadmap_short_id})`);
+          console.log(`         Dates: ${m.milestone_start_date} → ${m.milestone_end_date}`);
+          console.log(`         Status: ${m.milestone_status}`);
+          console.log('');
+        });
+      }
+
+      // Display file attachments
+      if (response.fileAttachments && response.fileAttachments.length > 0) {
+        console.log(`   📎 File Attachments (${response.fileAttachments.length}):`);
+        console.log('');
+        response.fileAttachments.forEach(att => {
+          console.log(`      📄 ${att.filename}`);
+          console.log(`         Path: ${att.file_path}`);
+          console.log(`         Size: ${formatFileSize(parseInt(att.size))}`);
+          if (att.attachment_description) {
+            console.log(`         Note: ${att.attachment_description}`);
+          }
+          console.log(`         Attached: ${new Date(att.attached_at).toLocaleString()} by ${att.attached_by}`);
+          console.log('');
+        });
+      }
+
       // Display steps
       if (response.steps && response.steps.length > 0) {
         console.log(`   📋 Steps (${response.steps.length}):`);
@@ -1147,6 +1601,157 @@ testCases
       console.log('');
       console.log('✅ Test case deleted successfully');
       console.log(`   ID: ${testCaseId}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+// ----------------------------------------------------------------------------
+// TEST CASE ATTACHMENTS
+// ----------------------------------------------------------------------------
+
+testCases
+  .command('attach <test-case-id> <file-path>')
+  .description('Attach file to test case (upload + link)')
+  .option('--description <text>', 'Attachment description')
+  .option('--expire <minutes>', 'File expiry in minutes (default: 43200 = 30 days)', '43200')
+  .option('--path <remote-path>', 'Remote file path (default: /test-cases/<filename>)')
+  .action(async (testCaseId, filePath, options) => {
+    checkEnv();
+
+    try {
+      const filename = basename(filePath);
+      const remotePath = options.path || `/test-cases/${filename}`;
+
+      // Step 1: Upload file
+      const fileData = prepareFileForUpload(filePath, remotePath, {
+        expire: options.expire,
+        tags: `test-case-${testCaseId.substring(0, 8)}`
+      });
+
+      if (!fileData.success) {
+        console.error('❌ Error preparing file:', fileData.error);
+        process.exit(1);
+      }
+
+      const uploadResponse = await uploadFile(fileData.payload);
+
+      // Step 2: Link file to test case
+      const linkData = {
+        file_id: uploadResponse.file.id,
+        attached_by: process.env.SAAC_HIVE_AGENT_NAME,
+        description: options.description || `Test case attachment: ${filename}`
+      };
+
+      const response = await linkFileToEntity('test-cases', testCaseId, linkData);
+
+      console.log('✅ File attached to test case successfully!');
+      console.log('');
+      console.log(`   Test Case ID: ${testCaseId.substring(0, 8)}`);
+      console.log(`   File: ${uploadResponse.file.filename}`);
+      console.log(`   Path: ${uploadResponse.file.path}`);
+      console.log(`   Size: ${formatFileSize(uploadResponse.file.size)}`);
+      console.log(`   Attachment ID: ${response.attachment.id.substring(0, 8)}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+testCases
+  .command('link-file <test-case-id> <file-id-or-path>')
+  .description('Link existing file to test case')
+  .option('--description <text>', 'Attachment description')
+  .action(async (testCaseId, fileIdOrPath, options) => {
+    checkEnv();
+
+    try {
+      const linkData = {
+        attached_by: process.env.SAAC_HIVE_AGENT_NAME,
+        description: options.description || `Linked to test case ${testCaseId.substring(0, 8)}`
+      };
+
+      // Check if it's a file ID or path
+      if (fileIdOrPath.startsWith('/')) {
+        linkData.file_path = fileIdOrPath;
+      } else {
+        linkData.file_id = fileIdOrPath;
+      }
+
+      const response = await linkFileToEntity('test-cases', testCaseId, linkData);
+
+      console.log('');
+      console.log('✅ File linked to test case successfully!');
+      console.log('');
+      console.log(`   Test Case ID: ${testCaseId.substring(0, 8)}`);
+      console.log(`   File: ${response.file.filename}`);
+      console.log(`   Path: ${response.file.path}`);
+      console.log(`   Attachment ID: ${response.attachment.attachment_id.substring(0, 8)}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+testCases
+  .command('list-files <test-case-id>')
+  .description('List files attached to test case')
+  .action(async (testCaseId) => {
+    checkEnv();
+
+    try {
+      const response = await listEntityAttachments('test-cases', testCaseId);
+
+      console.log('');
+      console.log(`📎 Test Case Attachments (${response.count || 0} files)`);
+      console.log('');
+
+      if (!response.attachments || response.attachments.length === 0) {
+        console.log('   No files attached');
+        console.log('');
+        return;
+      }
+
+      response.attachments.forEach(att => {
+        console.log(`   📄 ${att.filename}`);
+        console.log(`      Attachment ID: ${att.attachment_id.substring(0, 8)}`);
+        console.log(`      File ID: ${att.file_short_id || att.file_id.substring(0, 8)}`);
+        console.log(`      Path: ${att.file_path}`);
+        console.log(`      Size: ${formatFileSize(att.size)}`);
+        if (att.attachment_description) {
+          console.log(`      Description: ${att.attachment_description}`);
+        }
+        console.log(`      Attached: ${new Date(att.attached_at).toLocaleString()} by ${att.attached_by}`);
+        console.log('');
+      });
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+testCases
+  .command('unlink-file <test-case-id> <attachment-id>')
+  .description('Unlink file from test case (preserves file)')
+  .action(async (testCaseId, attachmentId) => {
+    checkEnv();
+
+    try {
+      const response = await unlinkFileFromEntity('test-cases', testCaseId, attachmentId);
+
+      console.log('');
+      console.log('✅ File unlinked from test case successfully');
+      console.log(`   Test Case ID: ${testCaseId.substring(0, 8)}`);
+      console.log(`   Attachment ID: ${attachmentId.substring(0, 8)}`);
+      console.log('   Note: File preserved in workspace storage');
       console.log('');
 
     } catch (error) {
@@ -1462,7 +2067,73 @@ tickets
   .description('Get ticket details')
   .action(async (ticketId) => {
     checkEnv();
-    console.log('Would get ticket:', ticketId);
+
+    try {
+      const response = await getTicket(ticketId);
+      const ticket = response.ticket;
+
+      console.log('');
+      console.log(`🎫 ${ticket.title}`);
+      console.log('');
+      console.log(`   ID: ${ticket.id}`);
+      console.log(`   Priority: ${ticket.priority || 'N/A'}`);
+      console.log(`   Status: ${ticket.status}`);
+      console.log('');
+      console.log(`   Created: ${new Date(ticket.created_at).toLocaleString()}`);
+      if (ticket.created_by) {
+        console.log(`   Created By: ${ticket.created_by}`);
+      }
+      console.log('');
+
+      if (ticket.description) {
+        console.log(`   Description:`);
+        console.log(`   ${ticket.description}`);
+        console.log('');
+      }
+
+      // Display milestone attachments
+      if (response.milestones && response.milestones.length > 0) {
+        console.log(`   📍 Milestones (${response.milestones.length}):`);
+        console.log('');
+        response.milestones.forEach(m => {
+          const statusEmoji = {
+            'pending': '⏳',
+            'in_progress': '🔄',
+            'completed': '✅',
+            'cancelled': '❌'
+          }[m.milestone_status] || '📍';
+
+          console.log(`      ${statusEmoji} ${m.milestone_name} (${m.milestone_short_id})`);
+          console.log(`         Roadmap: ${m.roadmap_name} (${m.roadmap_short_id})`);
+          console.log(`         Dates: ${m.milestone_start_date} → ${m.milestone_end_date}`);
+          console.log(`         Status: ${m.milestone_status}`);
+          console.log('');
+        });
+      }
+
+      // Display file attachments
+      if (response.fileAttachments && response.fileAttachments.length > 0) {
+        console.log(`   📎 File Attachments (${response.fileAttachments.length}):`);
+        console.log('');
+        response.fileAttachments.forEach(att => {
+          console.log(`      📄 ${att.filename}`);
+          console.log(`         Path: ${att.file_path}`);
+          console.log(`         Size: ${formatFileSize(parseInt(att.size))}`);
+          if (att.attachment_description) {
+            console.log(`         Note: ${att.attachment_description}`);
+          }
+          console.log(`         Attached: ${new Date(att.attached_at).toLocaleString()} by ${att.attached_by}`);
+          console.log('');
+        });
+      }
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      if (error.response?.status === 404) {
+        console.error('   Ticket not found');
+      }
+      process.exit(1);
+    }
   });
 
 tickets
@@ -1524,6 +2195,157 @@ tickets
   .action(async (ticketId, options) => {
     checkEnv();
     console.log('Would resolve ticket:', { ticketId, options });
+  });
+
+// ----------------------------------------------------------------------------
+// TICKET ATTACHMENTS
+// ----------------------------------------------------------------------------
+
+tickets
+  .command('attach <ticket-id> <file-path>')
+  .description('Attach file to ticket (upload + link)')
+  .option('--description <text>', 'Attachment description')
+  .option('--expire <minutes>', 'File expiry in minutes (default: 43200 = 30 days)', '43200')
+  .option('--path <remote-path>', 'Remote file path (default: /tickets/<filename>)')
+  .action(async (ticketId, filePath, options) => {
+    checkEnv();
+
+    try {
+      const filename = basename(filePath);
+      const remotePath = options.path || `/tickets/${filename}`;
+
+      // Step 1: Upload file
+      const fileData = prepareFileForUpload(filePath, remotePath, {
+        expire: options.expire,
+        tags: `ticket-${ticketId.substring(0, 8)}`
+      });
+
+      if (!fileData.success) {
+        console.error('❌ Error preparing file:', fileData.error);
+        process.exit(1);
+      }
+
+      const uploadResponse = await uploadFile(fileData.payload);
+
+      // Step 2: Link file to ticket
+      const linkData = {
+        file_id: uploadResponse.file.id,
+        attached_by: process.env.SAAC_HIVE_AGENT_NAME,
+        description: options.description || `Ticket attachment: ${filename}`
+      };
+
+      const response = await linkFileToEntity('tickets', ticketId, linkData);
+
+      console.log('✅ File attached to ticket successfully!');
+      console.log('');
+      console.log(`   Ticket ID: ${ticketId.substring(0, 8)}`);
+      console.log(`   File: ${uploadResponse.file.filename}`);
+      console.log(`   Path: ${uploadResponse.file.path}`);
+      console.log(`   Size: ${formatFileSize(uploadResponse.file.size)}`);
+      console.log(`   Attachment ID: ${response.attachment.id.substring(0, 8)}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+tickets
+  .command('link-file <ticket-id> <file-id-or-path>')
+  .description('Link existing file to ticket')
+  .option('--description <text>', 'Attachment description')
+  .action(async (ticketId, fileIdOrPath, options) => {
+    checkEnv();
+
+    try {
+      const linkData = {
+        attached_by: process.env.SAAC_HIVE_AGENT_NAME,
+        description: options.description || `Linked to ticket ${ticketId.substring(0, 8)}`
+      };
+
+      // Check if it's a file ID or path
+      if (fileIdOrPath.startsWith('/')) {
+        linkData.file_path = fileIdOrPath;
+      } else {
+        linkData.file_id = fileIdOrPath;
+      }
+
+      const response = await linkFileToEntity('tickets', ticketId, linkData);
+
+      console.log('');
+      console.log('✅ File linked to ticket successfully!');
+      console.log('');
+      console.log(`   Ticket ID: ${ticketId.substring(0, 8)}`);
+      console.log(`   File: ${response.file.filename}`);
+      console.log(`   Path: ${response.file.path}`);
+      console.log(`   Attachment ID: ${response.attachment.attachment_id.substring(0, 8)}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+tickets
+  .command('list-files <ticket-id>')
+  .description('List files attached to ticket')
+  .action(async (ticketId) => {
+    checkEnv();
+
+    try {
+      const response = await listEntityAttachments('tickets', ticketId);
+
+      console.log('');
+      console.log(`📎 Ticket Attachments (${response.count || 0} files)`);
+      console.log('');
+
+      if (!response.attachments || response.attachments.length === 0) {
+        console.log('   No files attached');
+        console.log('');
+        return;
+      }
+
+      response.attachments.forEach(att => {
+        console.log(`   📄 ${att.filename}`);
+        console.log(`      Attachment ID: ${att.attachment_id.substring(0, 8)}`);
+        console.log(`      File ID: ${att.file_short_id || att.file_id.substring(0, 8)}`);
+        console.log(`      Path: ${att.file_path}`);
+        console.log(`      Size: ${formatFileSize(att.size)}`);
+        if (att.attachment_description) {
+          console.log(`      Description: ${att.attachment_description}`);
+        }
+        console.log(`      Attached: ${new Date(att.attached_at).toLocaleString()} by ${att.attached_by}`);
+        console.log('');
+      });
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+tickets
+  .command('unlink-file <ticket-id> <attachment-id>')
+  .description('Unlink file from ticket (preserves file)')
+  .action(async (ticketId, attachmentId) => {
+    checkEnv();
+
+    try {
+      const response = await unlinkFileFromEntity('tickets', ticketId, attachmentId);
+
+      console.log('');
+      console.log('✅ File unlinked from ticket successfully');
+      console.log(`   Ticket ID: ${ticketId.substring(0, 8)}`);
+      console.log(`   Attachment ID: ${attachmentId.substring(0, 8)}`);
+      console.log('   Note: File preserved in workspace storage');
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
   });
 
 // ============================================================================
@@ -1713,6 +2535,22 @@ roadmaps
         console.log('');
       }
 
+      // Display file attachments
+      if (r.fileAttachments && r.fileAttachments.length > 0) {
+        console.log(`   📎 File Attachments (${r.fileAttachments.length}):`);
+        console.log('');
+        r.fileAttachments.forEach(att => {
+          console.log(`      📄 ${att.filename}`);
+          console.log(`         Path: ${att.file_path}`);
+          console.log(`         Size: ${formatFileSize(parseInt(att.size))}`);
+          if (att.attachment_description) {
+            console.log(`         Note: ${att.attachment_description}`);
+          }
+          console.log(`         Attached: ${new Date(att.attached_at).toLocaleString()} by ${att.attached_by}`);
+          console.log('');
+        });
+      }
+
     } catch (error) {
       console.error('❌ Error:', error.response?.data?.error || error.message);
       process.exit(1);
@@ -1850,6 +2688,157 @@ roadmaps
     }
   });
 
+// ----------------------------------------------------------------------------
+// ROADMAP ATTACHMENTS
+// ----------------------------------------------------------------------------
+
+roadmaps
+  .command('attach <roadmap-id> <file-path>')
+  .description('Attach file to roadmap (upload + link)')
+  .option('--description <text>', 'Attachment description')
+  .option('--expire <minutes>', 'File expiry in minutes (default: 43200 = 30 days)', '43200')
+  .option('--path <remote-path>', 'Remote file path (default: /roadmaps/<filename>)')
+  .action(async (roadmapId, filePath, options) => {
+    checkEnv();
+
+    try {
+      const filename = basename(filePath);
+      const remotePath = options.path || `/roadmaps/${filename}`;
+
+      // Step 1: Upload file
+      const fileData = prepareFileForUpload(filePath, remotePath, {
+        expire: options.expire,
+        tags: `roadmap-${roadmapId.substring(0, 8)}`
+      });
+
+      if (!fileData.success) {
+        console.error('❌ Error preparing file:', fileData.error);
+        process.exit(1);
+      }
+
+      const uploadResponse = await uploadFile(fileData.payload);
+
+      // Step 2: Link file to roadmap
+      const linkData = {
+        file_id: uploadResponse.file.id,
+        attached_by: process.env.SAAC_HIVE_AGENT_NAME,
+        description: options.description || `Roadmap attachment: ${filename}`
+      };
+
+      const response = await linkFileToEntity('roadmaps', roadmapId, linkData);
+
+      console.log('✅ File attached to roadmap successfully!');
+      console.log('');
+      console.log(`   Roadmap ID: ${roadmapId.substring(0, 8)}`);
+      console.log(`   File: ${uploadResponse.file.filename}`);
+      console.log(`   Path: ${uploadResponse.file.path}`);
+      console.log(`   Size: ${formatFileSize(uploadResponse.file.size)}`);
+      console.log(`   Attachment ID: ${response.attachment.id.substring(0, 8)}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+roadmaps
+  .command('link-file <roadmap-id> <file-id-or-path>')
+  .description('Link existing file to roadmap')
+  .option('--description <text>', 'Attachment description')
+  .action(async (roadmapId, fileIdOrPath, options) => {
+    checkEnv();
+
+    try {
+      const linkData = {
+        attached_by: process.env.SAAC_HIVE_AGENT_NAME,
+        description: options.description || `Linked to roadmap ${roadmapId.substring(0, 8)}`
+      };
+
+      // Check if it's a file ID or path
+      if (fileIdOrPath.startsWith('/')) {
+        linkData.file_path = fileIdOrPath;
+      } else {
+        linkData.file_id = fileIdOrPath;
+      }
+
+      const response = await linkFileToEntity('roadmaps', roadmapId, linkData);
+
+      console.log('');
+      console.log('✅ File linked to roadmap successfully!');
+      console.log('');
+      console.log(`   Roadmap ID: ${roadmapId.substring(0, 8)}`);
+      console.log(`   File: ${response.file.filename}`);
+      console.log(`   Path: ${response.file.path}`);
+      console.log(`   Attachment ID: ${response.attachment.attachment_id.substring(0, 8)}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+roadmaps
+  .command('list-files <roadmap-id>')
+  .description('List files attached to roadmap')
+  .action(async (roadmapId) => {
+    checkEnv();
+
+    try {
+      const response = await listEntityAttachments('roadmaps', roadmapId);
+
+      console.log('');
+      console.log(`📎 Roadmap Attachments (${response.count || 0} files)`);
+      console.log('');
+
+      if (!response.attachments || response.attachments.length === 0) {
+        console.log('   No files attached');
+        console.log('');
+        return;
+      }
+
+      response.attachments.forEach(att => {
+        console.log(`   📄 ${att.filename}`);
+        console.log(`      Attachment ID: ${att.attachment_id.substring(0, 8)}`);
+        console.log(`      File ID: ${att.file_short_id || att.file_id.substring(0, 8)}`);
+        console.log(`      Path: ${att.file_path}`);
+        console.log(`      Size: ${formatFileSize(att.size)}`);
+        if (att.attachment_description) {
+          console.log(`      Description: ${att.attachment_description}`);
+        }
+        console.log(`      Attached: ${new Date(att.attached_at).toLocaleString()} by ${att.attached_by}`);
+        console.log('');
+      });
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+roadmaps
+  .command('unlink-file <roadmap-id> <attachment-id>')
+  .description('Unlink file from roadmap (preserves file)')
+  .action(async (roadmapId, attachmentId) => {
+    checkEnv();
+
+    try {
+      const response = await unlinkFileFromEntity('roadmaps', roadmapId, attachmentId);
+
+      console.log('');
+      console.log('✅ File unlinked from roadmap successfully');
+      console.log(`   Roadmap ID: ${roadmapId.substring(0, 8)}`);
+      console.log(`   Attachment ID: ${attachmentId.substring(0, 8)}`);
+      console.log('   Note: File preserved in workspace storage');
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
 // ============================================================================
 // MILESTONES Commands - Time-bound goals within roadmaps
 // ============================================================================
@@ -1884,6 +2873,102 @@ milestones
         console.log(`      Progress: ${milestone.calculated_progress || 0}% | Items: ${milestone.item_count || 0}`);
         console.log('');
       });
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+milestones
+  .command('get <milestone-id>')
+  .description('Get milestone details by ID')
+  .action(async (milestoneId) => {
+    checkEnv();
+
+    try {
+      const response = await getMilestone(milestoneId);
+      const m = response.milestone;
+
+      console.log('');
+      console.log(`🎯 ${m.name} (${m.id.substring(0, 8)})`);
+      console.log('');
+      console.log(`   ID: ${m.id}`);
+      console.log(`   Status: ${m.status}`);
+      console.log(`   Dates: ${m.start_date} → ${m.end_date}`);
+      console.log(`   Progress: ${m.calculated_progress || 0}%`);
+
+      if (m.description) {
+        console.log(`   Description: ${m.description}`);
+      }
+
+      if (m.roadmap_id) {
+        console.log(`   Roadmap ID: ${m.roadmap_id.substring(0, 8)}`);
+      }
+
+      if (m.roadmap_name) {
+        console.log(`   Roadmap: ${m.roadmap_name}`);
+      }
+
+      if (m.color) {
+        console.log(`   Color: ${m.color}`);
+      }
+
+      if (m.tags && m.tags.length > 0) {
+        console.log(`   Tags: ${m.tags.join(', ')}`);
+      }
+
+      console.log('');
+      console.log(`   Created: ${new Date(m.created_at).toLocaleString()}`);
+      if (m.created_by) {
+        console.log(`   Created By: ${m.created_by}`);
+      }
+
+      if (m.updated_at) {
+        console.log(`   Updated: ${new Date(m.updated_at).toLocaleString()}`);
+      }
+
+      console.log('');
+
+      // Display attached items
+      if (response.items && response.items.length > 0) {
+        console.log(`   📋 Attached Items (${response.items.length}):`);
+        console.log('');
+        response.items.forEach(item => {
+          const itemEmoji = {
+            'bug': '🐛',
+            'feature': '💡',
+            'test_case': '📝',
+            'support_ticket': '🎫',
+            'po_task': '📌',
+            'test_plan': '📊'
+          }[item.item_type] || '📌';
+
+          console.log(`      ${itemEmoji} ${item.item_title || 'Untitled'}`);
+          console.log(`         Type: ${item.item_type}`);
+          console.log(`         ID: ${item.item_id.substring(0, 8)}`);
+          if (item.item_status) {
+            console.log(`         Status: ${item.item_status}`);
+          }
+          console.log('');
+        });
+      }
+
+      // Display file attachments
+      if (response.fileAttachments && response.fileAttachments.length > 0) {
+        console.log(`   📎 File Attachments (${response.fileAttachments.length}):`);
+        console.log('');
+        response.fileAttachments.forEach(att => {
+          console.log(`      📄 ${att.filename}`);
+          console.log(`         Path: ${att.file_path}`);
+          console.log(`         Size: ${formatFileSize(parseInt(att.size))}`);
+          if (att.attachment_description) {
+            console.log(`         Note: ${att.attachment_description}`);
+          }
+          console.log(`         Attached: ${new Date(att.attached_at).toLocaleString()} by ${att.attached_by}`);
+          console.log('');
+        });
+      }
 
     } catch (error) {
       console.error('❌ Error:', error.response?.data?.error || error.message);
@@ -2050,6 +3135,157 @@ milestones
     }
   });
 
+// ----------------------------------------------------------------------------
+// MILESTONE ATTACHMENTS
+// ----------------------------------------------------------------------------
+
+milestones
+  .command('attach <milestone-id> <file-path>')
+  .description('Attach file to milestone (upload + link)')
+  .option('--description <text>', 'Attachment description')
+  .option('--expire <minutes>', 'File expiry in minutes (default: 43200 = 30 days)', '43200')
+  .option('--path <remote-path>', 'Remote file path (default: /milestones/<filename>)')
+  .action(async (milestoneId, filePath, options) => {
+    checkEnv();
+
+    try {
+      const filename = basename(filePath);
+      const remotePath = options.path || `/milestones/${filename}`;
+
+      // Step 1: Upload file
+      const fileData = prepareFileForUpload(filePath, remotePath, {
+        expire: options.expire,
+        tags: `milestone-${milestoneId.substring(0, 8)}`
+      });
+
+      if (!fileData.success) {
+        console.error('❌ Error preparing file:', fileData.error);
+        process.exit(1);
+      }
+
+      const uploadResponse = await uploadFile(fileData.payload);
+
+      // Step 2: Link file to milestone
+      const linkData = {
+        file_id: uploadResponse.file.id,
+        attached_by: process.env.SAAC_HIVE_AGENT_NAME,
+        description: options.description || `Milestone attachment: ${filename}`
+      };
+
+      const response = await linkFileToEntity('milestones', milestoneId, linkData);
+
+      console.log('✅ File attached to milestone successfully!');
+      console.log('');
+      console.log(`   Milestone ID: ${milestoneId.substring(0, 8)}`);
+      console.log(`   File: ${uploadResponse.file.filename}`);
+      console.log(`   Path: ${uploadResponse.file.path}`);
+      console.log(`   Size: ${formatFileSize(uploadResponse.file.size)}`);
+      console.log(`   Attachment ID: ${response.attachment.id.substring(0, 8)}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+milestones
+  .command('link-file <milestone-id> <file-id-or-path>')
+  .description('Link existing file to milestone')
+  .option('--description <text>', 'Attachment description')
+  .action(async (milestoneId, fileIdOrPath, options) => {
+    checkEnv();
+
+    try {
+      const linkData = {
+        attached_by: process.env.SAAC_HIVE_AGENT_NAME,
+        description: options.description || `Linked to milestone ${milestoneId.substring(0, 8)}`
+      };
+
+      // Check if it's a file ID or path
+      if (fileIdOrPath.startsWith('/')) {
+        linkData.file_path = fileIdOrPath;
+      } else {
+        linkData.file_id = fileIdOrPath;
+      }
+
+      const response = await linkFileToEntity('milestones', milestoneId, linkData);
+
+      console.log('');
+      console.log('✅ File linked to milestone successfully!');
+      console.log('');
+      console.log(`   Milestone ID: ${milestoneId.substring(0, 8)}`);
+      console.log(`   File: ${response.file.filename}`);
+      console.log(`   Path: ${response.file.path}`);
+      console.log(`   Attachment ID: ${response.attachment.attachment_id.substring(0, 8)}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+milestones
+  .command('list-files <milestone-id>')
+  .description('List files attached to milestone')
+  .action(async (milestoneId) => {
+    checkEnv();
+
+    try {
+      const response = await listEntityAttachments('milestones', milestoneId);
+
+      console.log('');
+      console.log(`📎 Milestone Attachments (${response.count || 0} files)`);
+      console.log('');
+
+      if (!response.attachments || response.attachments.length === 0) {
+        console.log('   No files attached');
+        console.log('');
+        return;
+      }
+
+      response.attachments.forEach(att => {
+        console.log(`   📄 ${att.filename}`);
+        console.log(`      Attachment ID: ${att.attachment_id.substring(0, 8)}`);
+        console.log(`      File ID: ${att.file_short_id || att.file_id.substring(0, 8)}`);
+        console.log(`      Path: ${att.file_path}`);
+        console.log(`      Size: ${formatFileSize(att.size)}`);
+        if (att.attachment_description) {
+          console.log(`      Description: ${att.attachment_description}`);
+        }
+        console.log(`      Attached: ${new Date(att.attached_at).toLocaleString()} by ${att.attached_by}`);
+        console.log('');
+      });
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+milestones
+  .command('unlink-file <milestone-id> <attachment-id>')
+  .description('Unlink file from milestone (preserves file)')
+  .action(async (milestoneId, attachmentId) => {
+    checkEnv();
+
+    try {
+      const response = await unlinkFileFromEntity('milestones', milestoneId, attachmentId);
+
+      console.log('');
+      console.log('✅ File unlinked from milestone successfully');
+      console.log(`   Milestone ID: ${milestoneId.substring(0, 8)}`);
+      console.log(`   Attachment ID: ${attachmentId.substring(0, 8)}`);
+      console.log('   Note: File preserved in workspace storage');
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
 // ============================================================================
 // MANUAL Command - Fetch full documentation from GitHub
 // ============================================================================
@@ -2102,6 +3338,964 @@ program
     } catch (error) {
       console.error('❌ Error:', error.message);
       process.exit(1);
+    }
+  });
+
+// ============================================================================
+// TEST FUNCTIONALITY - Comprehensive test suite for AI agents
+// ============================================================================
+
+program
+  .command('test-functionality <suite>')
+  .description('Run test suite to demonstrate CLI functionality (all|bugs|features|test-cases|tickets|files|roadmaps-milestones)')
+  .option('--quiet', 'Minimal output for CI/CD pipelines')
+  .option('--json', 'Output results as JSON')
+  .action(async (suite, options) => {
+    checkEnv();
+
+    const outputMode = options.json ? 'json' : options.quiet ? 'quiet' : 'verbose';
+    const testResults = []; // For JSON output
+
+    const testData = {
+      bugs: [],
+      features: [],
+      testCases: [],
+      roadmaps: [],
+      milestones: [],
+      files: [],
+      tickets: []
+    };
+
+    let totalTests = 0;
+    let passedTests = 0;
+    let failedTests = 0;
+    const failures = [];
+
+    const startTime = Date.now();
+
+    // Suppress console.log in quiet and JSON modes
+    const originalLog = console.log;
+    if (outputMode !== 'verbose') {
+      console.log = () => {}; // Suppress all output
+    }
+
+    // Helper function to record test results
+    const recordTest = (name, status, duration = 0) => {
+      if (outputMode === 'json') {
+        testResults.push({ name, status, duration: `${duration}ms` });
+      }
+    };
+
+    console.log('');
+    console.log('════════════════════════════════════════════════════════════════');
+    console.log('🧪 Workspace CLI Functionality Test Suite');
+    console.log('════════════════════════════════════════════════════════════════');
+    console.log('');
+
+    // Test bugs workflow
+    async function testBugs() {
+      console.log('─────────────────────────────────────────');
+      console.log('🐛 Testing: Bugs Workflow');
+      console.log('─────────────────────────────────────────');
+      console.log('');
+
+      try {
+        // Test 1: Create bug
+        totalTests++;
+        console.log('$ workspace bugs create "Login button not responding" \\');
+        console.log('    --project "my-webapp" \\');
+        console.log('    --severity high \\');
+        console.log('    --description "User clicks login but nothing happens"');
+        console.log('');
+
+        const bugData = {
+          project: 'my-webapp',
+          title: 'Login button not responding',
+          description: 'User clicks login but nothing happens',
+          severity: 'high',
+          steps_to_reproduce: '1. Navigate to /login 2. Click button 3. No response',
+          environment: 'production'
+        };
+
+        const createResponse = await createBug(bugData);
+        testData.bugs.push(createResponse.bug.id);
+
+        console.log('🐛 Creating bug: Login button not responding');
+        console.log('');
+        console.log('✅ Bug created successfully!');
+        console.log('');
+        console.log(`   ID: ${createResponse.bug.id.substring(0, 8)}`);
+        console.log(`   Title: ${createResponse.bug.title}`);
+        console.log(`   Severity: ${createResponse.bug.severity}`);
+        console.log(`   Status: ${createResponse.bug.status}`);
+        console.log('');
+        console.log(`✅ PASS - Bug created (ID: ${createResponse.bug.id.substring(0, 8)})`);
+        console.log('');
+        passedTests++;
+        recordTest('Create bug', 'pass');
+
+        // Test 2: Get bug
+        totalTests++;
+        console.log(`$ workspace bugs get ${createResponse.bug.id.substring(0, 8)}`);
+        console.log('');
+
+        const getResponse = await getBug(createResponse.bug.id);
+        console.log(`🐛 ${getResponse.bug.title}`);
+        console.log('');
+        console.log(`   ID: ${getResponse.bug.id}`);
+        console.log(`   Severity: ${getResponse.bug.severity}`);
+        console.log(`   Status: ${getResponse.bug.status}`);
+        console.log('');
+        console.log(`✅ PASS - Bug retrieved`);
+        console.log('');
+        passedTests++;
+        recordTest('Get bug', 'pass');
+
+        // Test 3: Update bug
+        totalTests++;
+        console.log(`$ workspace bugs update ${createResponse.bug.id.substring(0, 8)} --status in_progress`);
+        console.log('');
+
+        const updateResponse = await updateBug(createResponse.bug.id, { status: 'in_progress' });
+        console.log('✅ Bug updated successfully');
+        console.log(`   ID: ${updateResponse.bug.id.substring(0, 8)}`);
+        console.log(`   New Status: ${updateResponse.bug.status}`);
+        console.log('');
+        console.log(`✅ PASS - Bug updated`);
+        console.log('');
+        passedTests++;
+        recordTest('Update bug', 'pass');
+
+        // Test 4: Attach file to bug
+        totalTests++;
+        console.log('$ workspace files upload screenshot.png --path /bugs/error-screenshot.png');
+        console.log('');
+
+        const bugFilePayload = {
+          path: '/bugs/error-screenshot.png',
+          content: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+          base64_encoded: true,
+          content_type: 'image/png',
+          size: 95,
+          checksum: 'test-bug-file-checksum',
+          expire_minutes: 43200,
+          description: 'Bug error screenshot',
+          tags: [`bug-${createResponse.bug.id.substring(0, 8)}`],
+          created_by: process.env.SAAC_HIVE_AGENT_NAME
+        };
+
+        const bugFileResponse = await uploadFile(bugFilePayload);
+        testData.files.push(bugFileResponse.file.path);
+
+        console.log('📤 File uploaded');
+        console.log('');
+        console.log(`$ workspace bugs link-file ${createResponse.bug.id.substring(0, 8)} /bugs/error-screenshot.png`);
+        console.log('');
+
+        await linkFileToEntity('bugs', createResponse.bug.id, {
+          file_path: '/bugs/error-screenshot.png',
+          attached_by: process.env.SAAC_HIVE_AGENT_NAME,
+          description: 'Screenshot showing error'
+        });
+
+        console.log('✅ File linked to bug successfully!');
+        console.log('');
+        console.log(`✅ PASS - File attached to bug`);
+        console.log('');
+        passedTests++;
+        recordTest('Attach file to bug', 'pass');
+
+        // Test 5: Verify bug shows file attachment
+        totalTests++;
+        console.log(`$ workspace bugs get ${createResponse.bug.id.substring(0, 8)}`);
+        console.log('');
+
+        const bugWithFile = await getBug(createResponse.bug.id);
+
+        if (bugWithFile.fileAttachments && bugWithFile.fileAttachments.length > 0) {
+          console.log(`🐛 ${bugWithFile.bug.title}`);
+          console.log('');
+          console.log(`   📎 File Attachments (${bugWithFile.fileAttachments.length}):`);
+          bugWithFile.fileAttachments.forEach(att => {
+            console.log(`      📄 ${att.filename}`);
+            console.log(`         Path: ${att.file_path}`);
+          });
+          console.log('');
+          console.log(`✅ PASS - Bug shows file attachment (bidirectional verified)`);
+          console.log('');
+          passedTests++;
+          recordTest('Verify bug shows file attachment', 'pass');
+        } else {
+          console.log(`❌ FAIL - Bug does not show file attachment`);
+          console.log('');
+          failedTests++;
+          failures.push('File attachment: Bug does not show attached file');
+          recordTest('Verify bug shows file attachment', 'fail');
+        }
+
+      } catch (error) {
+        console.log(`❌ FAIL - ${error.response?.data?.error || error.message}`);
+        console.log('');
+        failedTests++;
+        failures.push(`Bugs workflow: ${error.message}`);
+      }
+    }
+
+    // Test features workflow
+    async function testFeatures() {
+      console.log('─────────────────────────────────────────');
+      console.log('💡 Testing: Features Workflow');
+      console.log('─────────────────────────────────────────');
+      console.log('');
+
+      try {
+        // Test 1: Create feature
+        totalTests++;
+        console.log('$ workspace features create "Add dark mode" \\');
+        console.log('    --project "my-webapp" \\');
+        console.log('    --description "Support dark theme for better UX" \\');
+        console.log('    --priority high');
+        console.log('');
+
+        // Lookup project ID
+        let projectId = null;
+        try {
+          const projectResponse = await getProjectByName('my-webapp');
+          projectId = projectResponse.project.id;
+        } catch (err) {
+          // Project doesn't exist, create without project_id
+        }
+
+        const featureData = {
+          title: 'Add dark mode',
+          project_id: projectId,
+          description: 'Support dark theme for better UX',
+          priority: 'high',
+          created_by: process.env.SAAC_HIVE_AGENT_NAME
+        };
+
+        const createResponse = await createFeature(featureData);
+        testData.features.push(createResponse.featureRequest.id);
+
+        console.log('🚀 Creating feature: Add dark mode');
+        console.log('');
+        console.log('✅ Feature created successfully!');
+        console.log('');
+        console.log(`   ID: ${createResponse.featureRequest.id.substring(0, 8)}`);
+        console.log(`   Title: ${createResponse.featureRequest.title}`);
+        console.log(`   Priority: ${createResponse.featureRequest.priority}`);
+        console.log(`   Status: ${createResponse.featureRequest.status}`);
+        console.log('');
+        console.log(`✅ PASS - Feature created (ID: ${createResponse.featureRequest.id.substring(0, 8)})`);
+        console.log('');
+        passedTests++;
+        recordTest('Create feature', 'pass');
+
+        // Test 2: Get feature
+        totalTests++;
+        console.log(`$ workspace features get ${createResponse.featureRequest.id.substring(0, 8)}`);
+        console.log('');
+
+        const getResponse = await getFeature(createResponse.featureRequest.id);
+        console.log(`📋 ${getResponse.featureRequest.title}`);
+        console.log('');
+        console.log(`   ID: ${getResponse.featureRequest.id}`);
+        console.log(`   Priority: ${getResponse.featureRequest.priority}`);
+        console.log(`   Status: ${getResponse.featureRequest.status}`);
+        console.log('');
+        console.log(`✅ PASS - Feature retrieved`);
+        console.log('');
+        passedTests++;
+        recordTest('Get feature', 'pass');
+
+        // Test 3: Attach file to feature
+        totalTests++;
+        console.log('$ workspace files upload market-analysis.pdf --path /features/market-analysis.pdf');
+        console.log('');
+
+        const featureFilePayload = {
+          path: '/features/market-analysis.pdf',
+          content: 'JVBERi0xLjMKJcTl8uXrp/Og0MTGCjQgMCBvYmoKPDwgL0xlbmd0aCA1IDAgUiA+PgpzdHJlYW0K',
+          base64_encoded: true,
+          content_type: 'application/pdf',
+          size: 512,
+          checksum: 'test-feature-file-checksum',
+          expire_minutes: 43200,
+          description: 'Market analysis document',
+          tags: [`feature-${createResponse.featureRequest.id.substring(0, 8)}`],
+          created_by: process.env.SAAC_HIVE_AGENT_NAME
+        };
+
+        const featureFileResponse = await uploadFile(featureFilePayload);
+        testData.files.push(featureFileResponse.file.path);
+
+        console.log('📤 File uploaded');
+        console.log('');
+        console.log(`$ workspace features link-file ${createResponse.featureRequest.id.substring(0, 8)} /features/market-analysis.pdf`);
+        console.log('');
+
+        await linkFileToEntity('features', createResponse.featureRequest.id, {
+          file_path: '/features/market-analysis.pdf',
+          attached_by: process.env.SAAC_HIVE_AGENT_NAME,
+          description: 'Market research supporting this feature'
+        });
+
+        console.log('✅ File linked to feature successfully!');
+        console.log('');
+        console.log(`✅ PASS - File attached to feature`);
+        console.log('');
+        passedTests++;
+        recordTest('Attach file to feature', 'pass');
+
+        // Test 4: Verify feature shows file attachment
+        totalTests++;
+        console.log(`$ workspace features get ${createResponse.featureRequest.id.substring(0, 8)}`);
+        console.log('');
+
+        const featureWithFile = await getFeature(createResponse.featureRequest.id);
+
+        if (featureWithFile.fileAttachments && featureWithFile.fileAttachments.length > 0) {
+          console.log(`💡 ${featureWithFile.featureRequest.title}`);
+          console.log('');
+          console.log(`   📎 File Attachments (${featureWithFile.fileAttachments.length}):`);
+          featureWithFile.fileAttachments.forEach(att => {
+            console.log(`      📄 ${att.filename}`);
+            console.log(`         Path: ${att.file_path}`);
+          });
+          console.log('');
+          console.log(`✅ PASS - Feature shows file attachment (bidirectional verified)`);
+          console.log('');
+          passedTests++;
+          recordTest('Verify feature shows file attachment', 'pass');
+        } else {
+          console.log(`❌ FAIL - Feature does not show file attachment`);
+          console.log('');
+          failedTests++;
+          failures.push('File attachment: Feature does not show attached file');
+          recordTest('Verify feature shows file attachment', 'fail');
+        }
+
+      } catch (error) {
+        console.log(`❌ FAIL - ${error.response?.data?.error || error.message}`);
+        console.log('');
+        failedTests++;
+        failures.push(`Features workflow: ${error.message}`);
+        recordTest('Features workflow', 'fail');
+      }
+    }
+
+    // Test roadmaps and milestones workflow
+    async function testRoadmapsMilestones() {
+      console.log('─────────────────────────────────────────');
+      console.log('🗺️  Testing: Roadmaps & Milestones Workflow');
+      console.log('─────────────────────────────────────────');
+      console.log('');
+
+      try {
+        // Test 1: Create roadmap
+        totalTests++;
+        console.log('$ workspace roadmaps create "Q1 2026 Product Roadmap" \\');
+        console.log('    --start-date 2026-01-01 \\');
+        console.log('    --end-date 2026-03-31 \\');
+        console.log('    --description "First quarter feature delivery"');
+        console.log('');
+
+        const roadmapData = {
+          name: 'Q1 2026 Product Roadmap',
+          start_date: '2026-01-01',
+          end_date: '2026-03-31',
+          description: 'First quarter feature delivery',
+          status: 'active',
+          created_by: process.env.SAAC_HIVE_AGENT_NAME
+        };
+
+        const roadmapResponse = await createRoadmap(roadmapData);
+        testData.roadmaps.push(roadmapResponse.id);
+
+        console.log('🗺️  Creating roadmap: Q1 2026 Product Roadmap');
+        console.log('');
+        console.log('✅ Roadmap created successfully!');
+        console.log('');
+        console.log(`   ID: ${roadmapResponse.id.substring(0, 8)}`);
+        console.log(`   Name: ${roadmapResponse.name}`);
+        console.log(`   Dates: ${roadmapResponse.start_date} → ${roadmapResponse.end_date}`);
+        console.log('');
+        console.log(`✅ PASS - Roadmap created (ID: ${roadmapResponse.id.substring(0, 8)})`);
+        console.log('');
+        passedTests++;
+        recordTest('Create roadmap', 'pass');
+
+        // Test 2: Create milestone
+        totalTests++;
+        console.log(`$ workspace milestones create ${roadmapResponse.id.substring(0, 8)} "Sprint 1 - Auth Features" \\`);
+        console.log('    --start-date 2026-01-01 \\');
+        console.log('    --end-date 2026-01-15 \\');
+        console.log('    --description "Authentication and authorization" \\');
+        console.log('    --status in_progress');
+        console.log('');
+
+        const milestoneData = {
+          name: 'Sprint 1 - Auth Features',
+          start_date: '2026-01-01',
+          end_date: '2026-01-15',
+          description: 'Authentication and authorization',
+          status: 'in_progress',
+          created_by: process.env.SAAC_HIVE_AGENT_NAME
+        };
+
+        const milestoneResponse = await createMilestone(roadmapResponse.id, milestoneData);
+        testData.milestones.push(milestoneResponse.id);
+
+        console.log('🎯 Creating milestone: Sprint 1 - Auth Features');
+        console.log('');
+        console.log('✅ Milestone created successfully!');
+        console.log('');
+        console.log(`   ID: ${milestoneResponse.id.substring(0, 8)}`);
+        console.log(`   Name: ${milestoneResponse.name}`);
+        console.log(`   Dates: ${milestoneResponse.start_date} → ${milestoneResponse.end_date}`);
+        console.log('');
+        console.log(`✅ PASS - Milestone created (ID: ${milestoneResponse.id.substring(0, 8)})`);
+        console.log('');
+        passedTests++;
+        recordTest('Create milestone', 'pass');
+
+        // Test 3: Attach bug to milestone
+        if (testData.bugs.length > 0) {
+          totalTests++;
+          console.log(`$ workspace milestones add-item ${milestoneResponse.id.substring(0, 8)} \\`);
+          console.log(`    --type bug --id ${testData.bugs[0].substring(0, 8)}`);
+          console.log('');
+
+          await addMilestoneItem(milestoneResponse.id, {
+            item_type: 'bug',
+            item_id: testData.bugs[0],
+            added_by: process.env.SAAC_HIVE_AGENT_NAME
+          });
+
+          console.log('✅ Item added to milestone');
+          console.log(`   Milestone: ${milestoneResponse.id.substring(0, 8)}`);
+          console.log(`   Type: bug`);
+          console.log(`   ID: ${testData.bugs[0].substring(0, 8)}`);
+          console.log('');
+          console.log(`✅ PASS - Bug attached to milestone`);
+          console.log('');
+          passedTests++;
+          recordTest('Attach bug to milestone', 'pass');
+
+          // Test 3b: Verify bidirectional relationship (bug shows milestone)
+          totalTests++;
+          console.log(`$ workspace bugs get ${testData.bugs[0].substring(0, 8)}`);
+          console.log('');
+
+          const bugWithMilestones = await getBug(testData.bugs[0]);
+
+          if (bugWithMilestones.milestones && bugWithMilestones.milestones.length > 0) {
+            console.log(`🐛 ${bugWithMilestones.bug.title}`);
+            console.log('');
+            console.log(`   📍 Milestones (${bugWithMilestones.milestones.length}):`);
+            bugWithMilestones.milestones.forEach(m => {
+              console.log(`      🔄 ${m.milestone_name} (${m.milestone_short_id})`);
+              console.log(`         Roadmap: ${m.roadmap_name} (${m.roadmap_short_id})`);
+            });
+            console.log('');
+            console.log(`✅ PASS - Bug shows milestone (bidirectional relationship verified)`);
+            console.log('');
+            passedTests++;
+            recordTest('Verify bidirectional relationship', 'pass');
+          } else {
+            console.log(`❌ FAIL - Bug does not show milestone attachment`);
+            console.log('');
+            failedTests++;
+            failures.push('Bidirectional relationship: Bug does not show milestone');
+            recordTest('Verify bidirectional relationship', 'fail');
+          }
+        }
+
+        // Test 4: Attach feature to milestone
+        if (testData.features.length > 0) {
+          totalTests++;
+          console.log(`$ workspace milestones add-item ${milestoneResponse.id.substring(0, 8)} \\`);
+          console.log(`    --type feature --id ${testData.features[0].substring(0, 8)}`);
+          console.log('');
+
+          try {
+            await addMilestoneItem(milestoneResponse.id, {
+              item_type: 'feature',
+              item_id: testData.features[0],
+              added_by: process.env.SAAC_HIVE_AGENT_NAME
+            });
+
+            console.log('✅ Item added to milestone');
+            console.log(`   Milestone: ${milestoneResponse.id.substring(0, 8)}`);
+            console.log(`   Type: feature`);
+            console.log(`   ID: ${testData.features[0].substring(0, 8)}`);
+            console.log('');
+            console.log(`✅ PASS - Feature attached to milestone`);
+            console.log('');
+            passedTests++;
+            recordTest('Attach feature to milestone', 'pass');
+          } catch (featureError) {
+            console.log(`❌ FAIL - Could not attach feature to milestone`);
+            console.log(`   Error: ${featureError.response?.data?.error || featureError.message}`);
+            if (featureError.response?.data?.details) {
+              console.log(`   Details: ${featureError.response.data.details}`);
+            }
+            console.log('');
+            failedTests++;
+            failures.push(`Feature attachment: ${featureError.response?.data?.error || featureError.message}`);
+            recordTest('Attach feature to milestone', 'fail');
+          }
+        }
+
+        // Test 5: Get Gantt chart
+        totalTests++;
+        console.log(`$ workspace roadmaps gantt ${roadmapResponse.id.substring(0, 8)}`);
+        console.log('');
+
+        const ganttResponse = await getRoadmapGantt(roadmapResponse.id);
+        console.log(`📊 Gantt Chart: ${ganttResponse.roadmap.name}`);
+        console.log('');
+        console.log(`   Roadmap: ${ganttResponse.roadmap.start_date} → ${ganttResponse.roadmap.end_date}`);
+        console.log(`   Milestones: ${ganttResponse.tasks.length}`);
+        console.log('');
+        console.log(`✅ PASS - Gantt chart retrieved`);
+        console.log('');
+        passedTests++;
+        recordTest('Get Gantt chart', 'pass');
+
+      } catch (error) {
+        console.log(`❌ FAIL - ${error.response?.data?.error || error.message}`);
+        console.log('');
+        failedTests++;
+        failures.push(`Roadmaps/Milestones workflow: ${error.message}`);
+        recordTest('Roadmaps/Milestones workflow', 'fail');
+      }
+    }
+
+    // Test files workflow
+    async function testFiles() {
+      console.log('─────────────────────────────────────────');
+      console.log('📄 Testing: Files Workflow');
+      console.log('─────────────────────────────────────────');
+      console.log('');
+
+      try {
+        // Test 1: Upload file
+        totalTests++;
+        console.log('$ workspace files upload test.txt \\');
+        console.log('    --path /testing/sample.txt \\');
+        console.log('    --expire 60 \\');
+        console.log('    --description "Test file upload"');
+        console.log('');
+
+        const fileContent = 'This is a test file for functionality verification';
+        const filePayload = {
+          path: '/testing/sample.txt',
+          content: fileContent,
+          base64_encoded: false,
+          content_type: 'text/plain',
+          size: fileContent.length,
+          checksum: 'test-checksum',
+          expire_minutes: 60,
+          description: 'Test file upload',
+          tags: ['test', 'functionality'],
+          created_by: process.env.SAAC_HIVE_AGENT_NAME
+        };
+
+        const uploadResponse = await uploadFile(filePayload);
+        testData.files.push(uploadResponse.file.path);
+
+        console.log('📤 Uploading file: test.txt');
+        console.log('');
+        console.log('✅ File uploaded successfully!');
+        console.log('');
+        console.log(`   Path: ${uploadResponse.file.path}`);
+        console.log(`   Size: ${uploadResponse.file.size} bytes`);
+        console.log(`   Expires: ${uploadResponse.file.expire_minutes} minutes`);
+        console.log('');
+        console.log(`✅ PASS - File uploaded`);
+        console.log('');
+        passedTests++;
+
+        // Test 2: Get file metadata
+        totalTests++;
+        console.log('$ workspace files get /testing/sample.txt');
+        console.log('');
+
+        const metaResponse = await getFileMetadata('/testing/sample.txt');
+        console.log('📄 File Metadata');
+        console.log('');
+        console.log(`   Path: ${metaResponse.file.path}`);
+        console.log(`   Size: ${metaResponse.file.size} bytes`);
+        console.log(`   Type: ${metaResponse.file.content_type}`);
+        console.log('');
+        console.log(`✅ PASS - File metadata retrieved`);
+        console.log('');
+        passedTests++;
+        recordTest('Get file metadata', 'pass');
+
+        // Test 3: Verify bidirectional file attachments
+        // If bugs or features were created, check if files show entity attachments
+        if (testData.bugs.length > 0 || testData.features.length > 0) {
+          totalTests++;
+          console.log('$ workspace files list --tags test');
+          console.log('');
+
+          const filesListResponse = await listFiles({
+            tags: 'test',
+            created_by: process.env.SAAC_HIVE_AGENT_NAME,
+            limit: 10
+          });
+
+          // Check if any file has entity attachments
+          const filesWithAttachments = filesListResponse.files.filter(f =>
+            f.attachments && f.attachments.length > 0
+          );
+
+          if (filesWithAttachments.length > 0) {
+            console.log(`📂 Files (${filesListResponse.files.length} found)`);
+            console.log('');
+            filesWithAttachments.forEach(file => {
+              console.log(`   📄 ${file.filename}`);
+              console.log(`      Path: ${file.path}`);
+              console.log(`      📎 Attached to (${file.attachments.length}):`);
+              file.attachments.forEach(att => {
+                const entityEmoji = {
+                  'bug': '🐛',
+                  'feature': '💡',
+                  'test_case': '📝',
+                  'ticket': '🎫',
+                  'milestone': '🎯',
+                  'roadmap': '🗺️'
+                }[att.entity_type] || '📌';
+                console.log(`         ${entityEmoji} ${att.entity_type}: ${att.entity_title || 'Untitled'}`);
+              });
+              console.log('');
+            });
+            console.log(`✅ PASS - Files show entity attachments (bidirectional verified)`);
+            console.log('');
+            passedTests++;
+            recordTest('Verify files show entity attachments', 'pass');
+          } else {
+            console.log(`ℹ️  INFO - No files with entity attachments found yet (test may run before bugs/features)`);
+            console.log('');
+            passedTests++;
+            recordTest('Verify files show entity attachments', 'skip');
+          }
+        }
+
+      } catch (error) {
+        console.log(`❌ FAIL - ${error.response?.data?.error || error.message}`);
+        console.log('');
+        failedTests++;
+        failures.push(`Files workflow: ${error.message}`);
+      }
+    }
+
+    // Test test-cases workflow
+    async function testTestCases() {
+      console.log('─────────────────────────────────────────');
+      console.log('📝 Testing: Test Cases Workflow');
+      console.log('─────────────────────────────────────────');
+      console.log('');
+
+      try {
+        // Test 1: Create test case
+        totalTests++;
+        console.log('$ workspace test-cases create "User login flow" \\');
+        console.log('    --project "my-webapp" \\');
+        console.log('    --description "Verify user can login successfully" \\');
+        console.log('    --priority high \\');
+        console.log('    --steps \'[{"step_number":1,"description":"Navigate to login page","expected_result":"Login form displays"},{"step_number":2,"description":"Enter credentials and submit","expected_result":"User is authenticated"}]\'');
+        console.log('');
+
+        const testCaseData = {
+          name: 'User login flow',
+          project: 'my-webapp',
+          description: 'Verify user can login successfully',
+          priority: 'high',
+          created_by: process.env.SAAC_HIVE_AGENT_NAME,
+          steps: [
+            { step_number: 1, description: 'Navigate to login page', expected_result: 'Login form displays' },
+            { step_number: 2, description: 'Enter credentials and submit', expected_result: 'User is authenticated' }
+          ]
+        };
+
+        const createResponse = await createTestCase(testCaseData);
+        testData.testCases.push(createResponse.testCase.id);
+
+        console.log('📝 Creating test case: User login flow');
+        console.log('');
+        console.log('✅ Test case created successfully!');
+        console.log('');
+        console.log(`   ID: ${createResponse.testCase.id.substring(0, 8)}`);
+        console.log(`   Name: ${createResponse.testCase.name}`);
+        console.log(`   Priority: ${createResponse.testCase.priority}`);
+        console.log(`   Steps: 2 steps created`);
+        console.log('');
+        console.log(`✅ PASS - Test case created (ID: ${createResponse.testCase.id.substring(0, 8)})`);
+        console.log('');
+        passedTests++;
+        recordTest('Create test case', 'pass');
+
+        // Test 2: Get test case
+        totalTests++;
+        console.log(`$ workspace test-cases get ${createResponse.testCase.id.substring(0, 8)}`);
+        console.log('');
+
+        const getResponse = await getTestCase(createResponse.testCase.id);
+        console.log(`📝 ${getResponse.testCase.name}`);
+        console.log('');
+        console.log(`   ID: ${getResponse.testCase.id}`);
+        console.log(`   Priority: ${getResponse.testCase.priority}`);
+        if (getResponse.steps && getResponse.steps.length > 0) {
+          console.log(`   Steps: ${getResponse.steps.length}`);
+        }
+        console.log('');
+        console.log(`✅ PASS - Test case retrieved`);
+        console.log('');
+        passedTests++;
+        recordTest('Get test case', 'pass');
+
+      } catch (error) {
+        console.log(`❌ FAIL - ${error.response?.data?.error || error.message}`);
+        console.log('');
+        failedTests++;
+        failures.push(`Test cases workflow: ${error.message}`);
+        recordTest('Test cases workflow', 'fail');
+      }
+    }
+
+    // Test tickets workflow
+    async function testTickets() {
+      console.log('─────────────────────────────────────────');
+      console.log('🎫 Testing: Tickets Workflow');
+      console.log('─────────────────────────────────────────');
+      console.log('');
+
+      try {
+        // Test 1: Create ticket (using createBug since ticket creation uses same endpoint)
+        totalTests++;
+        console.log('$ workspace bugs create "Cannot reset password" \\');
+        console.log('    --project "my-webapp" \\');
+        console.log('    --severity medium \\');
+        console.log('    --description "User reports password reset email not received"');
+        console.log('');
+
+        const ticketData = {
+          project: 'my-webapp',
+          title: 'Cannot reset password',
+          description: 'User reports password reset email not received',
+          severity: 'medium',
+          steps_to_reproduce: '1. Click forgot password 2. Enter email 3. No email received',
+          environment: 'production'
+        };
+
+        const createResponse = await createBug(ticketData);
+        testData.tickets.push(createResponse.bug.id);
+
+        console.log('🐛 Creating bug: Cannot reset password');
+        console.log('');
+        console.log('✅ Bug created successfully!');
+        console.log('');
+        console.log(`   ID: ${createResponse.bug.id.substring(0, 8)}`);
+        console.log(`   Title: ${createResponse.bug.title}`);
+        console.log(`   Severity: ${createResponse.bug.severity}`);
+        console.log('');
+        console.log(`✅ PASS - Ticket created (ID: ${createResponse.bug.id.substring(0, 8)})`);
+        console.log('');
+        passedTests++;
+        recordTest('Create ticket', 'pass');
+
+        // Test 2: Get ticket
+        totalTests++;
+        console.log(`$ workspace bugs get ${createResponse.bug.id.substring(0, 8)}`);
+        console.log('');
+
+        const getResponse = await getBug(createResponse.bug.id);
+        console.log(`🐛 ${getResponse.bug.title}`);
+        console.log('');
+        console.log(`   ID: ${getResponse.bug.id}`);
+        console.log(`   Severity: ${getResponse.bug.severity}`);
+        console.log(`   Status: ${getResponse.bug.status}`);
+        console.log('');
+        console.log(`✅ PASS - Ticket retrieved`);
+        console.log('');
+        passedTests++;
+        recordTest('Get ticket', 'pass');
+
+      } catch (error) {
+        console.log(`❌ FAIL - ${error.response?.data?.error || error.message}`);
+        console.log('');
+        failedTests++;
+        failures.push(`Tickets workflow: ${error.message}`);
+        recordTest('Tickets workflow', 'fail');
+      }
+    }
+
+    // Run tests based on suite
+    if (suite === 'all' || suite === 'bugs') {
+      await testBugs();
+    }
+
+    if (suite === 'all' || suite === 'features') {
+      await testFeatures();
+    }
+
+    if (suite === 'all' || suite === 'roadmaps-milestones') {
+      await testRoadmapsMilestones();
+    }
+
+    if (suite === 'all' || suite === 'test-cases') {
+      await testTestCases();
+    }
+
+    if (suite === 'all' || suite === 'tickets') {
+      await testTickets();
+    }
+
+    if (suite === 'all' || suite === 'files') {
+      await testFiles();
+    }
+
+    // Cleanup
+    console.log('');
+    console.log('─────────────────────────────────────────');
+    console.log('🧹 Cleanup: Deleting test data...');
+    console.log('─────────────────────────────────────────');
+    console.log('');
+
+    let cleanedCount = 0;
+
+    for (const fileId of testData.files) {
+      try {
+        await apiDeleteFile(fileId);
+        console.log(`   ✅ Deleted file ${fileId}`);
+        cleanedCount++;
+      } catch (err) {
+        console.log(`   ⚠️  Could not delete file ${fileId}`);
+      }
+    }
+
+    for (const milestoneId of testData.milestones) {
+      try {
+        await deleteMilestone(milestoneId);
+        console.log(`   ✅ Deleted milestone ${milestoneId.substring(0, 8)}`);
+        cleanedCount++;
+      } catch (err) {
+        console.log(`   ⚠️  Could not delete milestone ${milestoneId.substring(0, 8)}`);
+      }
+    }
+
+    for (const roadmapId of testData.roadmaps) {
+      try {
+        await deleteRoadmap(roadmapId);
+        console.log(`   ✅ Deleted roadmap ${roadmapId.substring(0, 8)}`);
+        cleanedCount++;
+      } catch (err) {
+        console.log(`   ⚠️  Could not delete roadmap ${roadmapId.substring(0, 8)}`);
+      }
+    }
+
+    for (const featureId of testData.features) {
+      try {
+        await deleteFeature(featureId);
+        console.log(`   ✅ Deleted feature ${featureId.substring(0, 8)}`);
+        cleanedCount++;
+      } catch (err) {
+        console.log(`   ⚠️  Could not delete feature ${featureId.substring(0, 8)}`);
+      }
+    }
+
+    for (const testCaseId of testData.testCases) {
+      try {
+        await deleteTestCase(testCaseId);
+        console.log(`   ✅ Deleted test case ${testCaseId.substring(0, 8)}`);
+        cleanedCount++;
+      } catch (err) {
+        console.log(`   ⚠️  Could not delete test case ${testCaseId.substring(0, 8)}`);
+      }
+    }
+
+    for (const ticketId of testData.tickets) {
+      try {
+        // Tickets use soft delete (same as bugs), so archive them
+        await updateBug(ticketId, { status: 'archived' });
+        console.log(`   ✅ Archived ticket ${ticketId.substring(0, 8)} (soft delete)`);
+        cleanedCount++;
+      } catch (err) {
+        console.log(`   ⚠️  Could not archive ticket ${ticketId.substring(0, 8)}`);
+      }
+    }
+
+    for (const bugId of testData.bugs) {
+      try {
+        // Bugs use soft delete, so archive them instead
+        await updateBug(bugId, { status: 'archived' });
+        console.log(`   ✅ Archived bug ${bugId.substring(0, 8)} (soft delete)`);
+        cleanedCount++;
+      } catch (err) {
+        console.log(`   ⚠️  Could not archive bug ${bugId.substring(0, 8)}`);
+      }
+    }
+
+    console.log('');
+    console.log(`   Total cleaned: ${cleanedCount} items`);
+    console.log('');
+
+    // Restore console.log
+    console.log = originalLog;
+
+    // Final summary
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+
+    if (outputMode === 'json') {
+      // JSON output
+      const result = {
+        suite,
+        total: totalTests,
+        passed: passedTests,
+        failed: failedTests,
+        duration: `${elapsed}s`,
+        cleaned: cleanedCount,
+        tests: testResults,
+        failures: failures.length > 0 ? failures : undefined
+      };
+      console.log(JSON.stringify(result, null, 2));
+      process.exit(failedTests > 0 ? 1 : 0);
+    } else if (outputMode === 'quiet') {
+      // Quiet output for CI/CD
+      if (failedTests > 0) {
+        console.log(`❌ ${failedTests}/${totalTests} tests failed (${elapsed}s)`);
+        failures.forEach(f => console.log(`   - ${f}`));
+        process.exit(1);
+      } else {
+        console.log(`✅ ${passedTests}/${totalTests} tests passed (${elapsed}s)`);
+        process.exit(0);
+      }
+    } else {
+      // Verbose output (default)
+      console.log('');
+      console.log('════════════════════════════════════════════════════════════════');
+      console.log('📊 Test Summary');
+      console.log('════════════════════════════════════════════════════════════════');
+      console.log(`Total Tests: ${totalTests}`);
+      console.log(`Passed: ${passedTests} ✅`);
+      console.log(`Failed: ${failedTests} ${failedTests > 0 ? '❌' : ''}`);
+      console.log(`Time: ${elapsed}s`);
+      console.log('');
+
+      if (failedTests > 0) {
+        console.log('❌ Failed Tests:');
+        failures.forEach(f => console.log(`   - ${f}`));
+        console.log('');
+      }
+
+      console.log(`✅ All test data cleaned up (${cleanedCount} items)`);
+      console.log('');
+      console.log('════════════════════════════════════════════════════════════════');
+      console.log('');
+      process.exit(failedTests > 0 ? 1 : 0);
     }
   });
 

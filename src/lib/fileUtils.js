@@ -151,10 +151,6 @@ function prepareFileForUpload(localPath, remotePath, options = {}) {
       payload.project_id = options.projectId;
     }
 
-    if (options.public) {
-      payload.is_public = true;
-    }
-
     return {
       success: true,
       payload,

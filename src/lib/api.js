@@ -346,6 +346,15 @@ async function listExecutions(filters = {}) {
 }
 
 /**
+ * Get ticket details
+ */
+async function getTicket(ticketId) {
+  const client = createClient();
+  const response = await client.get(`/api/tickets/${ticketId}`);
+  return response.data;
+}
+
+/**
  * Update ticket
  */
 async function updateTicket(ticketId, updates) {
@@ -457,6 +466,15 @@ async function createMilestone(roadmapId, data) {
 }
 
 /**
+ * Get milestone by ID
+ */
+async function getMilestone(milestoneId) {
+  const client = createClient();
+  const response = await client.get(`/api/milestones/${milestoneId}`);
+  return response.data;
+}
+
+/**
  * Update milestone (including moving to different roadmap)
  */
 async function updateMilestone(milestoneId, updates) {
@@ -503,6 +521,46 @@ async function removeMilestoneItem(milestoneId, itemId) {
   return response.data;
 }
 
+// ============================================================================
+// ATTACHMENTS - File attachments for entities
+// ============================================================================
+
+/**
+ * Attach file to entity (upload + link in one call)
+ */
+async function attachFileToEntity(entityType, entityId, fileData) {
+  const client = createClient();
+  const response = await client.post(`/api/${entityType}/${entityId}/attachments`, fileData);
+  return response.data;
+}
+
+/**
+ * Link existing file to entity
+ */
+async function linkFileToEntity(entityType, entityId, linkData) {
+  const client = createClient();
+  const response = await client.post(`/api/${entityType}/${entityId}/attachments/link`, linkData);
+  return response.data;
+}
+
+/**
+ * List attachments for entity
+ */
+async function listEntityAttachments(entityType, entityId) {
+  const client = createClient();
+  const response = await client.get(`/api/${entityType}/${entityId}/attachments`);
+  return response.data;
+}
+
+/**
+ * Unlink attachment from entity
+ */
+async function unlinkFileFromEntity(entityType, entityId, attachmentId) {
+  const client = createClient();
+  const response = await client.delete(`/api/${entityType}/${entityId}/attachments/${attachmentId}`);
+  return response.data;
+}
+
 module.exports = {
   createClient,
   uploadFile,
@@ -538,6 +596,7 @@ module.exports = {
   completeExecution,
   getExecution,
   listExecutions,
+  getTicket,
   updateTicket,
   listRoadmaps,
   createRoadmap,
@@ -548,10 +607,15 @@ module.exports = {
   removeRoadmapProject,
   getRoadmapGantt,
   listMilestones,
+  getMilestone,
   createMilestone,
   updateMilestone,
   deleteMilestone,
   reorderMilestones,
   addMilestoneItem,
-  removeMilestoneItem
+  removeMilestoneItem,
+  attachFileToEntity,
+  linkFileToEntity,
+  listEntityAttachments,
+  unlinkFileFromEntity
 };

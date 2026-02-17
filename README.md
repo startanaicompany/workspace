@@ -1,8 +1,8 @@
 # @startanaicompany/workspace
 
-Official CLI for StartAnAiCompany Workspace Management - file storage, features, bugs, test cases, test executions, and project management.
+Official CLI for StartAnAiCompany Workspace Management - file storage with attachments, features, bugs, test cases, test executions, roadmaps, milestones, and project management.
 
-**Version:** 1.6.0
+**Version:** 1.10.0
 **License:** MIT
 **Homepage:** https://workspace.startanaicompany.com
 
@@ -15,11 +15,13 @@ Official CLI for StartAnAiCompany Workspace Management - file storage, features,
 - [Configuration](#configuration)
 - [Commands Reference](#commands-reference)
   - [Files Management](#files-management)
+  - [File Attachments](#file-attachments)
   - [Features Management](#features-management)
   - [Bugs Management](#bugs-management)
   - [Test Cases Management](#test-cases-management)
   - [Test Executions](#test-executions)
   - [Support Tickets](#support-tickets)
+  - [Roadmaps and Milestones](#roadmaps-and-milestones)
   - [Projects Management](#projects-management)
 - [Features](#features)
 - [File Auto-Expiry](#file-auto-expiry)
@@ -121,7 +123,6 @@ Upload a file to workspace storage.
 - `--description <text>` - File description
 - `--tags <tags>` - Comma-separated tags (e.g., `production,quarterly`)
 - `--project-id <id>` - Link to project (short or long UUID)
-- `--public` - Make file publicly accessible (default: false)
 
 **Examples:**
 
@@ -132,12 +133,6 @@ workspace files upload ./report.pdf \
   --expire 1440 \
   --tags "quarterly,analysis" \
   --description "Q1 2025 Financial Report"
-
-# Upload public image with 7-day expiry
-workspace files upload ./logo.png \
-  --path /assets/logo.png \
-  --expire 10080 \
-  --public
 
 # Upload text file with project link
 workspace files upload ./notes.txt \
@@ -263,6 +258,347 @@ workspace files update /app/storage/reports/q1-2025.pdf \
   --expire 7200 \
   --description "Final Q1 Report" \
   --tags "final,quarterly,2025"
+```
+
+---
+
+### File Attachments
+
+Attach files to bugs, features, test cases, tickets, milestones, and roadmaps. Attachments create bidirectional relationships:
+- **Forward:** Entity → Files attached to it
+- **Backward:** File → Entities using it
+
+This helps track file usage, prevent accidental deletion, and maintain cross-references.
+
+#### Attachment Commands
+
+All entity types support the same 4 attachment commands:
+
+1. **`attach`** - Upload file + link to entity (2-step: upload then link)
+2. **`link-file`** - Link existing file to entity
+3. **`list-files`** - List files attached to entity
+4. **`unlink-file`** - Unlink file from entity (doesn't delete file)
+
+**Supported Entities:**
+- `bugs` - Bug reports
+- `features` - Feature requests
+- `test-cases` - Test cases
+- `tickets` - Support tickets
+- `milestones` - Milestone goals
+- `roadmaps` - Product roadmaps
+
+---
+
+#### `workspace <entity> attach <entity-id> <file-path>`
+
+Upload a file and attach it to an entity in one command.
+
+**Options:**
+- `--description <text>` - Attachment description/note
+- `--expire <minutes>` - File expiry in minutes (default: 43200 = 30 days)
+- `--path <remote-path>` - Custom remote file path (optional)
+
+**Examples:**
+
+```bash
+# Attach screenshot to bug
+workspace bugs attach 48f3eaaf ./error-screenshot.png \
+  --description "Screenshot showing login button freeze"
+
+# Attach market analysis to feature
+workspace features attach abc12345 ./market-research.pdf \
+  --description "Q1 2026 market analysis supporting this feature" \
+  --expire 129600  # 90 days
+
+# Attach test data to test case
+workspace test-cases attach def67890 ./test-data.csv \
+  --description "Expected output data for validation"
+
+# Attach design mockup to roadmap
+workspace roadmaps attach xyz98765 ./dashboard-mockup.png \
+  --description "Dashboard redesign mockup"
+
+# Attach documentation to milestone
+workspace milestones attach abc11111 ./sprint-plan.pdf \
+  --description "Sprint 1 planning document"
+
+# Attach customer email to ticket
+workspace tickets attach ticket123 ./customer-email.txt \
+  --description "Original customer report"
+```
+
+**Workflow:**
+1. File is uploaded to workspace storage (default path: `/<entity-type>/<filename>`)
+2. File is linked to entity via `entity_attachments` junction table
+3. Both entity and file now show the relationship
+
+---
+
+#### `workspace <entity> link-file <entity-id> <file-id-or-path>`
+
+Link an existing file to an entity (file must already be uploaded).
+
+**Options:**
+- `--description <text>` - Attachment description/note
+
+**Examples:**
+
+```bash
+# Link file by path
+workspace bugs link-file 48f3eaaf /screenshots/login-error.png \
+  --description "Screenshot showing the UI freeze"
+
+# Link file by ID (short UUID)
+workspace features link-file abc12345 f8a3c2d1
+
+# Link same file to multiple entities
+workspace bugs link-file bug1 /analysis/performance-report.pdf
+workspace features link-file feat1 /analysis/performance-report.pdf
+workspace milestones link-file mile1 /analysis/performance-report.pdf
+```
+
+**Benefits:**
+- Reuse files across multiple entities without duplication
+- Attach high-value files (market research, architecture docs) to multiple features/milestones
+- Save storage space and maintain single source of truth
+
+---
+
+#### `workspace <entity> list-files <entity-id>`
+
+List all files attached to an entity.
+
+**Examples:**
+
+```bash
+# List files attached to bug
+workspace bugs list-files 48f3eaaf
+
+# List files attached to feature
+workspace features list-files abc12345
+
+# List files attached to milestone
+workspace milestones list-files mile1
+```
+
+**Output:**
+```
+📎 File Attachments (3)
+
+   📄 error-screenshot.png
+      Path: /bugs/error-screenshot.png
+      Size: 1.2 MB | Type: image/png
+      Attached: 2/17/2026, 10:05:00 AM by qa-tester-agent
+      Note: Screenshot showing the login button UI freeze
+
+   📄 performance-log.txt
+      Path: /bugs/performance-log.txt
+      Size: 45 KB | Type: text/plain
+      Attached: 2/17/2026, 11:00:00 AM by backend-dev
+      Note: Server logs during the incident
+
+   📄 video-recording.mp4
+      Path: /bugs/video-recording.mp4
+      Size: 8.5 MB | Type: video/mp4
+      Attached: 2/17/2026, 11:30:00 AM by qa-tester-agent
+      Note: Screen recording showing bug reproduction
+```
+
+---
+
+#### `workspace <entity> unlink-file <entity-id> <attachment-id>`
+
+Unlink a file from an entity (does NOT delete the file, only removes the link).
+
+**Examples:**
+
+```bash
+# Unlink file from bug
+workspace bugs unlink-file 48f3eaaf a1b2c3d4
+
+# Unlink file from feature
+workspace features unlink-file abc12345 e5f6g7h8
+
+# Unlink file from milestone
+workspace milestones unlink-file mile1 i9j0k1l2
+```
+
+**Note:** The attachment ID is displayed when you run `list-files` command.
+
+---
+
+#### Bidirectional Display
+
+Files and entities now show their relationships in both directions.
+
+**Entity → Files (bugs get, features get, etc.):**
+
+```bash
+workspace bugs get 48f3eaaf
+```
+
+Output:
+```
+🐛 Login button not responding (48f3eaaf)
+
+   Severity: high
+   Status: in_progress
+   ...
+
+   📎 File Attachments (2):
+
+      📄 error-screenshot.png
+         Path: /bugs/error-screenshot.png
+         Size: 1.2 MB
+         Note: Screenshot showing the login button UI freeze
+         Attached: 2/17/2026, 10:05:00 AM by qa-tester-agent
+
+      📄 performance-log.txt
+         Path: /bugs/performance-log.txt
+         Size: 45 KB
+         Note: Server logs during the incident
+         Attached: 2/17/2026, 11:00:00 AM by backend-dev
+```
+
+**File → Entities (files get, files list):**
+
+```bash
+workspace files get /bugs/error-screenshot.png
+```
+
+Output:
+```
+📄 error-screenshot.png
+
+   Path: /bugs/error-screenshot.png
+   Size: 1.2 MB
+   Type: image/png
+   ...
+
+   📎 Attached to (3):
+
+      🐛 Bug: Login button not responding (48f3eaaf)
+         Attached: 2/17/2026, 10:05:00 AM by qa-tester-agent
+         Note: Screenshot showing the login button UI freeze
+
+      🐛 Bug: Session timeout after 2 minutes (abc12345)
+         Attached: 2/17/2026, 10:10:00 AM by dev-team-lead
+         Note: Same error appears during session timeout
+
+      💡 Feature: Improve login error handling (def67890)
+         Attached: 2/17/2026, 10:15:00 AM by product-manager
+         Note: Reference for UX improvement design
+```
+
+---
+
+#### Use Cases
+
+**Bugs:**
+- Attach screenshots of errors
+- Link error logs
+- Attach video recordings of bug reproduction
+- Link stack traces and debug output
+
+**Features:**
+- Attach market analysis documents
+- Link design mockups and wireframes
+- Attach user research findings
+- Link competitive analysis reports
+- Attach customer feedback documents
+
+**Test Cases:**
+- Attach expected output files
+- Link test data files (CSV, JSON)
+- Attach execution screenshots
+- Link performance benchmarks
+
+**Tickets:**
+- Attach customer communications
+- Link support documentation
+- Attach solution proposals
+- Link knowledge base articles
+
+**Milestones:**
+- Attach project documentation
+- Link sprint reports
+- Attach deliverables
+- Link planning documents
+
+**Roadmaps:**
+- Attach strategic plans
+- Link executive summaries
+- Attach stakeholder presentations
+- Link market research reports
+
+---
+
+#### File Management Best Practices
+
+**1. Prevent Accidental Deletion**
+```bash
+# Check what would be affected before deleting
+workspace files get /analysis/market-research.pdf
+
+# Shows:
+# 📎 Attached to (6):
+#    💡 Feature: Add AI features (feat1234)
+#    💡 Feature: Expand to Europe (feat5678)
+#    🎯 Milestone: Launch AI features (mile1111)
+#    🗺️  Roadmap: 2026 Product Strategy (road2222)
+#    ... (6 total)
+
+# Don't delete! File is actively used.
+```
+
+**2. Find Orphaned Files (Safe to Delete)**
+```bash
+# List all files
+workspace files list --created-by my-agent
+
+# Look for files with no attachments:
+# 📄 old-screenshot.png
+#    Path: /temp/old-screenshot.png
+#    Expires: EXPIRED
+#    (No attachments shown = orphaned file)
+
+# Safe to delete
+workspace files delete /temp/old-screenshot.png
+```
+
+**3. Reuse High-Value Files**
+```bash
+# Upload once
+workspace files upload ./Q1-analysis.pdf \
+  --path /analysis/q1-2026-market-research.pdf \
+  --expire 129600
+
+# Link to multiple entities
+workspace features link-file feat1 /analysis/q1-2026-market-research.pdf
+workspace features link-file feat2 /analysis/q1-2026-market-research.pdf
+workspace milestones link-file mile1 /analysis/q1-2026-market-research.pdf
+workspace roadmaps link-file road1 /analysis/q1-2026-market-research.pdf
+
+# Single source of truth, multiple references
+```
+
+**4. Extend TTL for Important Files**
+```bash
+# File shows it's used by 5 entities
+workspace files get /analysis/critical-data.pdf
+
+# Extend expiry to 90 days
+workspace files update /analysis/critical-data.pdf --expire 129600
+```
+
+**5. Track File Usage Analytics**
+```bash
+# Find heavily-used files (keep and extend TTL)
+workspace files list | grep "Attached to"
+
+# Find unused files (safe to clean up)
+workspace files list --tags temp
+# Delete files with no attachments or expired
 ```
 
 ---
@@ -890,6 +1226,255 @@ Create new support ticket.
 
 ---
 
+### Roadmaps and Milestones
+
+Plan and track product roadmaps with time-bound milestones. Supports Gantt chart visualization and polymorphic item attachments.
+
+#### `workspace roadmaps list`
+
+List all roadmaps with filtering.
+
+**Options:**
+- `--status <status>` - Filter by status (planning|active|completed|archived)
+- `--created-by <name>` - Filter by creator agent
+- `--limit <number>` - Max results (default: 50, max: 500)
+- `--offset <number>` - Skip first N results (default: 0)
+
+**Example:**
+
+```bash
+workspace roadmaps list --status active
+```
+
+---
+
+#### `workspace roadmaps create <name>`
+
+Create a new product roadmap.
+
+**Options:**
+- `--start-date <date>` - Start date (YYYY-MM-DD, required)
+- `--end-date <date>` - End date (YYYY-MM-DD, required)
+- `--description <text>` - Roadmap description
+- `--status <status>` - Status (planning|active|completed|archived, default: planning)
+- `--tags <tags>` - Comma-separated tags
+
+**Example:**
+
+```bash
+workspace roadmaps create "Q1 2026 Product Roadmap" \
+  --start-date 2026-01-01 \
+  --end-date 2026-03-31 \
+  --description "First quarter feature delivery" \
+  --status active \
+  --tags "2026,q1,product"
+```
+
+---
+
+#### `workspace roadmaps get <roadmap-id>`
+
+Get roadmap details by ID.
+
+**Example:**
+
+```bash
+workspace roadmaps get abc12345
+```
+
+**Output:**
+- Roadmap name, status, dates
+- Description and tags
+- Created/updated timestamps
+- **File attachments** (if any)
+
+---
+
+#### `workspace roadmaps update <roadmap-id>`
+
+Update roadmap details.
+
+**Options:**
+- `--name <text>` - New name
+- `--description <text>` - New description
+- `--status <status>` - New status
+- `--start-date <date>` - New start date
+- `--end-date <date>` - New end date
+- `--tags <tags>` - New tags (replaces existing)
+
+**Example:**
+
+```bash
+workspace roadmaps update abc12345 \
+  --status active \
+  --description "Updated Q1 2026 roadmap"
+```
+
+---
+
+#### `workspace roadmaps delete <roadmap-id>`
+
+Delete roadmap (cascades to milestones and items).
+
+**Example:**
+
+```bash
+workspace roadmaps delete abc12345
+```
+
+---
+
+#### `workspace roadmaps gantt <roadmap-id>`
+
+Get Gantt chart visualization data for roadmap.
+
+**Example:**
+
+```bash
+workspace roadmaps gantt abc12345
+```
+
+**Output:**
+- ASCII Gantt chart showing milestones timeline
+- Milestone progress bars
+- Item counts and status indicators
+
+---
+
+#### `workspace milestones list <roadmap-id>`
+
+List milestones for a roadmap.
+
+**Example:**
+
+```bash
+workspace milestones list abc12345
+```
+
+**Output:**
+- Milestone name, status, dates
+- Progress percentage
+- Item count
+
+---
+
+#### `workspace milestones get <milestone-id>`
+
+Get milestone details by ID.
+
+**Example:**
+
+```bash
+workspace milestones get mile1234
+```
+
+**Output:**
+- Milestone name, status, dates, progress
+- Roadmap information
+- Description, tags, color
+- Created/updated timestamps
+- **Attached items** (bugs, features, test cases, tickets)
+- **File attachments** (if any)
+
+---
+
+#### `workspace milestones create <roadmap-id> <name>`
+
+Create a new milestone within a roadmap.
+
+**Options:**
+- `--start-date <date>` - Start date (YYYY-MM-DD, required)
+- `--end-date <date>` - End date (YYYY-MM-DD, required)
+- `--description <text>` - Milestone description
+- `--status <status>` - Status (pending|in_progress|completed|cancelled, default: pending)
+- `--tags <tags>` - Comma-separated tags
+- `--color <hex>` - Color hex code (e.g., #2563EB)
+
+**Example:**
+
+```bash
+workspace milestones create abc12345 "Sprint 1 - Authentication" \
+  --start-date 2026-01-01 \
+  --end-date 2026-01-15 \
+  --description "Authentication and user management features" \
+  --status in_progress \
+  --tags "auth,sprint1" \
+  --color "#2563EB"
+```
+
+---
+
+#### `workspace milestones update <milestone-id>`
+
+Update milestone details (including moving to different roadmap).
+
+**Options:**
+- `--roadmap-id <id>` - Move to different roadmap (short or long UUID)
+- `--name <text>` - New name
+- `--description <text>` - New description
+- `--status <status>` - New status
+- `--start-date <date>` - New start date
+- `--end-date <date>` - New end date
+- `--tags <tags>` - New tags (replaces existing)
+- `--color <hex>` - New color hex code
+
+**Example:**
+
+```bash
+workspace milestones update mile1234 \
+  --status completed \
+  --description "Successfully completed Sprint 1"
+```
+
+---
+
+#### `workspace milestones delete <milestone-id>`
+
+Delete milestone (cascades to milestone items).
+
+**Example:**
+
+```bash
+workspace milestones delete mile1234
+```
+
+---
+
+#### `workspace milestones add-item <milestone-id>`
+
+Add an item (bug, feature, test case, ticket) to milestone.
+
+**Options:**
+- `--type <type>` - Item type (bug|feature|test_case|support_ticket|po_task|test_plan, required)
+- `--id <id>` - Item ID (short or long UUID, required)
+
+**Examples:**
+
+```bash
+# Add bug to milestone
+workspace milestones add-item mile1234 --type bug --id 48f3eaaf
+
+# Add feature to milestone
+workspace milestones add-item mile1234 --type feature --id feat5678
+
+# Add test case to milestone
+workspace milestones add-item mile1234 --type test_case --id test9012
+```
+
+---
+
+#### `workspace milestones remove-item <milestone-id> <item-id>`
+
+Remove an item from milestone (doesn't delete the item).
+
+**Example:**
+
+```bash
+workspace milestones remove-item mile1234 item5678
+```
+
+---
+
 ### Projects Management
 
 Manage and track projects (placeholder - full implementation coming soon).
@@ -1013,7 +1598,7 @@ workspace files list --limit 500
 
 | Command | Project Filters | Pagination | Domain Filters |
 |---------|----------------|------------|----------------|
-| `files list` | ✅ project-name, project-id | ✅ limit, offset | path, tags, created_by, is_public |
+| `files list` | ✅ project-name, project-id | ✅ limit, offset | path, tags, created_by |
 | `features list` | ✅ project-name, project-id | ✅ limit, offset | status, priority, created_by |
 | `bugs list` | ✅ project-name, project-id | ✅ limit, offset | status, priority, severity, created_by, include-archived |
 | `test-cases list` | ✅ project-name, project-id | ✅ limit, offset | suite, status, priority, role, created_by |
@@ -1179,6 +1764,119 @@ workspace executions complete xyz67890 \
 workspace executions list --status failed --environment staging
 ```
 
+### File Attachments Workflow
+
+```bash
+# 1. Create a bug
+workspace bugs create "Login error with screenshot" \
+  --project testproj01 \
+  --severity high \
+  --description "Login fails with cryptic error message"
+
+# Bug ID: 48f3eaaf
+
+# 2. Attach screenshot to bug (upload + link in one command)
+workspace bugs attach 48f3eaaf ./screenshots/login-error.png \
+  --description "Screenshot showing the error message"
+
+# 3. Attach error log to same bug
+workspace bugs attach 48f3eaaf ./logs/error.log \
+  --description "Server logs during the incident"
+
+# 4. View bug with attachments
+workspace bugs get 48f3eaaf
+# Output shows:
+#   📎 File Attachments (2):
+#      📄 login-error.png
+#         Path: /bugs/login-error.png
+#         Size: 1.2 MB
+#         Note: Screenshot showing the error message
+#      📄 error.log
+#         Path: /bugs/error.log
+#         Size: 45 KB
+#         Note: Server logs during the incident
+
+# 5. Reuse same screenshot for related feature request
+workspace features create "Improve error messages" \
+  --project testproj01 \
+  --priority high \
+  --description "Make error messages more user-friendly"
+
+# Feature ID: def67890
+
+# Link existing screenshot to feature (no re-upload)
+workspace features link-file def67890 /bugs/login-error.png \
+  --description "Example of current confusing error message"
+
+# 6. Check which entities are using the screenshot (bidirectional)
+workspace files get /bugs/login-error.png
+# Output shows:
+#   📎 Attached to (2):
+#      🐛 Bug: Login error with screenshot (48f3eaaf)
+#         Note: Screenshot showing the error message
+#      💡 Feature: Improve error messages (def67890)
+#         Note: Example of current confusing error message
+
+# 7. List all files and see attachment count
+workspace files list --tags screenshot
+# Shows which files have attachments and how many entities use them
+
+# 8. Unlink file from bug (doesn't delete file)
+workspace bugs unlink-file 48f3eaaf a1b2c3d4
+
+# 9. Delete file only when no longer needed
+workspace files delete /bugs/login-error.png
+# ⚠️  Only safe to delete when not attached to any entities
+```
+
+### Roadmap and Milestones Workflow
+
+```bash
+# 1. Create Q1 roadmap
+workspace roadmaps create "Q1 2026 Product Roadmap" \
+  --start-date 2026-01-01 \
+  --end-date 2026-03-31 \
+  --description "First quarter feature delivery" \
+  --status active \
+  --tags "2026,q1,product"
+
+# Roadmap ID: roadmap1
+
+# 2. Create Sprint 1 milestone
+workspace milestones create roadmap1 "Sprint 1 - Authentication" \
+  --start-date 2026-01-01 \
+  --end-date 2026-01-15 \
+  --description "Auth features and user management" \
+  --status in_progress \
+  --tags "auth,sprint1" \
+  --color "#2563EB"
+
+# Milestone ID: mile1234
+
+# 3. Add items to milestone
+workspace milestones add-item mile1234 --type bug --id 48f3eaaf
+workspace milestones add-item mile1234 --type feature --id def67890
+
+# 4. Attach planning document to milestone
+workspace milestones attach mile1234 ./docs/sprint1-plan.pdf \
+  --description "Sprint 1 planning document"
+
+# 5. View milestone with items and attachments
+workspace milestones get mile1234
+# Output shows:
+#   📋 Attached Items (2):
+#      🐛 Login error with screenshot (48f3eaaf)
+#      💡 Improve error messages (def67890)
+#   📎 File Attachments (1):
+#      📄 sprint1-plan.pdf
+
+# 6. View Gantt chart for roadmap
+workspace roadmaps gantt roadmap1
+
+# 7. Complete milestone
+workspace milestones update mile1234 --status completed
+```
+
 ### Pagination Example
 
 ```bash
@@ -1320,6 +2018,44 @@ workspace test-cases create "Test" \
 ---
 
 ## Version History
+
+### v1.10.0 (2026-02-17)
+- **New:** Complete bidirectional file attachments system for all entity types
+- **New:** File attachment commands (attach, link-file, list-files, unlink-file) for bugs, features, test-cases, tickets, milestones, roadmaps
+- **New:** `workspace milestones get` command to view milestone details
+- **New:** Bidirectional display - entities show attached files, files show which entities use them
+- **New:** File attachments display in all entity GET commands (bugs, features, test-cases, tickets, milestones, roadmaps)
+- **New:** Comprehensive test suite for attachment workflows
+- **New:** Extensive file attachments documentation with use cases and best practices
+- **Improved:** Entity GET commands now display file attachments with metadata
+- **Improved:** Files list/get commands now show which entities are using each file
+- **Improved:** Test-functionality suite includes bidirectional attachment verification
+
+### v1.9.0 (2026-02-17)
+- **New:** Roadmaps and milestones system with Gantt chart support
+- **New:** Polymorphic item attachments (bugs, features, test cases, tickets to milestones)
+- **New:** Roadmaps commands (list, create, get, update, delete, gantt)
+- **New:** Milestones commands (list, create, update, delete, add-item, remove-item)
+- **New:** Bidirectional milestone relationships (milestones show items, items show milestones)
+- **Improved:** Progress tracking and item count calculations
+
+### v1.8.1 (2026-02-17)
+- **Fixed:** Status enum values updated to match backend schema
+- **Fixed:** Bugs status values (open, in_progress, resolved, closed, archived)
+- **Fixed:** Features status values (requested, planned, in_progress, completed, rejected)
+- **Fixed:** Tickets status values (open, in_progress, resolved, closed)
+- **Fixed:** Executions status values (pending, running, passed, failed, skipped)
+
+### v1.8.0 (2026-02-17)
+- **New:** Tags update support for all resources (files, features, bugs, test-cases, tickets)
+- **New:** Project ID update support for all resources
+- **New:** Metadata update commands without content re-upload
+- **Improved:** File update command supports tags and project_id changes
+
+### v1.7.0 (2026-02-17)
+- **Removed:** Suite system (tags-only approach for AI agents)
+- **Improved:** Simplified organization with tags instead of hierarchical suites
+- **Improved:** Better fit for programmatic/agent usage
 
 ### v1.6.0 (2025-02-17)
 - **New:** Dual project filtering (--project-name and --project-id) for all list commands
