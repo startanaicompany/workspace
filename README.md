@@ -280,6 +280,7 @@ List feature requests with filtering and pagination.
 - `--project-id <id>` - Filter by project ID (short or long UUID)
 - `--status <status>` - Filter by status (requested|in_progress|completed|rejected)
 - `--priority <level>` - Filter by priority (low|medium|high|critical)
+- `--created-by <name>` - Filter by creator agent
 - `--limit <number>` - Max results (default: 50, max: 500)
 - `--offset <number>` - Skip first N results (default: 0)
 
@@ -419,6 +420,7 @@ List bugs with filtering and pagination.
 - `--status <status>` - Filter by status (open|in_progress|resolved|closed|archived)
 - `--priority <level>` - Filter by priority (low|medium|high|critical)
 - `--severity <level>` - Filter by severity (low|medium|high|critical)
+- `--created-by <name>` - Filter by creator agent
 - `--include-archived` - Include archived bugs (default: false)
 - `--limit <number>` - Max results (default: 50, max: 500)
 - `--offset <number>` - Skip first N results (default: 0)
@@ -552,6 +554,7 @@ List test cases with filtering and pagination.
 - `--status <status>` - Filter by status (active|inactive|all, default: active)
 - `--priority <level>` - Filter by priority (low|medium|high|critical)
 - `--role <name>` - Filter by role
+- `--created-by <name>` - Filter by creator agent
 - `--limit <number>` - Max results (default: 50, max: 500)
 - `--offset <number>` - Skip first N results (default: 0)
 
@@ -1011,9 +1014,9 @@ workspace files list --limit 500
 | Command | Project Filters | Pagination | Domain Filters |
 |---------|----------------|------------|----------------|
 | `files list` | ✅ project-name, project-id | ✅ limit, offset | path, tags, created_by, is_public |
-| `features list` | ✅ project-name, project-id | ✅ limit, offset | status, priority |
-| `bugs list` | ✅ project-name, project-id | ✅ limit, offset | status, priority, severity, include-archived |
-| `test-cases list` | ✅ project-name, project-id | ✅ limit, offset | suite, status, priority, role |
+| `features list` | ✅ project-name, project-id | ✅ limit, offset | status, priority, created_by |
+| `bugs list` | ✅ project-name, project-id | ✅ limit, offset | status, priority, severity, created_by, include-archived |
+| `test-cases list` | ✅ project-name, project-id | ✅ limit, offset | suite, status, priority, role, created_by |
 | `executions list` | ✅ project-name, project-id | ✅ limit, offset | status, agent, environment |
 
 ---

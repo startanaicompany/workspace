@@ -348,6 +348,7 @@ features
   .option('--project-id <id>', 'Filter by project ID (short or long UUID)')
   .option('--status <status>', 'Filter by status')
   .option('--priority <level>', 'Filter by priority')
+  .option('--created-by <name>', 'Filter by creator agent')
   .option('--limit <number>', 'Max results (default: 50, max: 500)')
   .option('--offset <number>', 'Skip first N results (default: 0)')
   .action(async (options) => {
@@ -360,6 +361,7 @@ features
       if (options.projectId) filters.project_id = options.projectId;
       if (options.status) filters.status = options.status;
       if (options.priority) filters.priority = options.priority;
+      if (options.createdBy) filters.created_by = options.createdBy;
       if (options.limit) filters.limit = parseInt(options.limit);
       if (options.offset) filters.offset = parseInt(options.offset);
 
@@ -621,6 +623,7 @@ bugs
   .option('--status <status>', 'Filter by status (open|in_progress|resolved|closed|archived)')
   .option('--priority <level>', 'Filter by priority (low|medium|high|critical)')
   .option('--severity <level>', 'Filter by severity (low|medium|high|critical)')
+  .option('--created-by <name>', 'Filter by creator agent')
   .option('--include-archived', 'Include archived bugs (default: false)')
   .option('--limit <number>', 'Max results (default: 50, max: 500)')
   .option('--offset <number>', 'Skip first N results (default: 0)')
@@ -635,6 +638,7 @@ bugs
       if (options.status) filters.status = options.status;
       if (options.priority) filters.priority = options.priority;
       if (options.severity) filters.severity = options.severity;
+      if (options.createdBy) filters.created_by = options.createdBy;
       if (options.includeArchived) filters.include_archived = true;
       if (options.limit) filters.limit = parseInt(options.limit);
       if (options.offset) filters.offset = parseInt(options.offset);
@@ -873,6 +877,7 @@ testCases
   .option('--status <status>', 'Filter by status (active|inactive|all, default: active)')
   .option('--priority <level>', 'Filter by priority')
   .option('--role <name>', 'Filter by role')
+  .option('--created-by <name>', 'Filter by creator agent')
   .option('--limit <number>', 'Max results (default: 50, max: 500)')
   .option('--offset <number>', 'Skip first N results (default: 0)')
   .action(async (options) => {
@@ -887,6 +892,7 @@ testCases
       if (options.status) filters.status = options.status;
       if (options.priority) filters.priority = options.priority;
       if (options.role) filters.role = options.role;
+      if (options.createdBy) filters.created_by = options.createdBy;
       if (options.limit) filters.limit = parseInt(options.limit);
       if (options.offset) filters.offset = parseInt(options.offset);
 
