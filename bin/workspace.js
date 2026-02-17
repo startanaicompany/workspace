@@ -12,7 +12,7 @@ const { Command } = require('commander');
 const { readFileSync, writeFileSync } = require('fs');
 const { join, basename } = require('path');
 const { prepareFileForUpload, formatFileSize, formatExpiry } = require('../src/lib/fileUtils');
-const { uploadFile, downloadFile, listFiles, getFileMetadata, deleteFile: apiDeleteFile, updateFile: apiUpdateFile, getProjectByName, listFeatures, createFeature, getFeature, updateFeature, deleteFeature, addFeatureComment, listFeatureComments, listBugs, createBug, getBug, updateBug, deleteBug, addBugComment, listBugComments, listTestCases, createTestCase, getTestCase, updateTestCase, deleteTestCase, addTestCaseComment, listTestCaseComments, startExecution, updateExecutionStep, completeExecution, getExecution, listExecutions, updateTicket } = require('../src/lib/api');
+const { uploadFile, downloadFile, listFiles, getFileMetadata, deleteFile: apiDeleteFile, updateFile: apiUpdateFile, getProjectByName, listFeatures, createFeature, getFeature, updateFeature, deleteFeature, addFeatureComment, listFeatureComments, listBugs, createBug, getBug, updateBug, deleteBug, addBugComment, listBugComments, listTestCases, createTestCase, getTestCase, updateTestCase, deleteTestCase, addTestCaseComment, listTestCaseComments, startExecution, updateExecutionStep, completeExecution, getExecution, listExecutions, updateTicket, listRoadmaps, createRoadmap, getRoadmap, updateRoadmap, deleteRoadmap, addRoadmapProject, removeRoadmapProject, getRoadmapGantt, listMilestones, createMilestone, updateMilestone, deleteMilestone, reorderMilestones, addMilestoneItem, removeMilestoneItem } = require('../src/lib/api');
 const axios = require('axios');
 
 // Get package.json for version
@@ -1564,6 +1564,490 @@ projects
   .action(async (projectId) => {
     checkEnv();
     console.log('Would get project stats:', projectId);
+  });
+
+// ============================================================================
+// ROADMAPS Commands - Roadmap planning with time boundaries
+// ============================================================================
+const roadmaps = program
+  .command('roadmaps')
+  .description('Manage product roadmaps');
+
+roadmaps
+  .command('list')
+  .description('List all roadmaps')
+  .option('--project-name <name>', 'Filter by project name (a-z0-9)')
+  .option('--project-id <id>', 'Filter by project ID (short or long UUID)')
+  .option('--status <status>', 'Filter by status (active|archived|completed)')
+  .option('--created-by <name>', 'Filter by creator agent')
+  .option('--tags <tags>', 'Filter by tags (comma-separated)')
+  .option('--limit <number>', 'Max results (default: 50, max: 500)')
+  .option('--offset <number>', 'Skip first N results (default: 0)')
+  .action(async (options) => {
+    checkEnv();
+
+    try {
+      const filters = {};
+      if (options.projectName) filters.project_name = options.projectName;
+      if (options.projectId) filters.project_id = options.projectId;
+      if (options.status) filters.status = options.status;
+      if (options.createdBy) filters.created_by = options.createdBy;
+      if (options.tags) filters.tags = options.tags;
+      if (options.limit) filters.limit = parseInt(options.limit);
+      if (options.offset) filters.offset = parseInt(options.offset);
+
+      const response = await listRoadmaps(filters);
+
+      console.log('');
+      console.log(`🗺️  Roadmaps (${response.length} found)`);
+      console.log('');
+
+      if (response.length === 0) {
+        console.log('   No roadmaps found');
+        console.log('');
+        return;
+      }
+
+      response.forEach(roadmap => {
+        console.log(`   📍 ${roadmap.name}`);
+        console.log(`      ID: ${roadmap.id.substring(0, 8)}`);
+        console.log(`      Status: ${roadmap.status}`);
+        console.log(`      Dates: ${roadmap.start_date} → ${roadmap.end_date}`);
+        console.log(`      Milestones: ${roadmap.milestone_count || 0} | Projects: ${roadmap.project_count || 0}`);
+        console.log('');
+      });
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+roadmaps
+  .command('create <name>')
+  .description('Create new roadmap')
+  .requiredOption('--start-date <date>', 'Start date (YYYY-MM-DD)')
+  .requiredOption('--end-date <date>', 'End date (YYYY-MM-DD)')
+  .option('--description <text>', 'Roadmap description')
+  .option('--status <status>', 'Status (active|archived|completed)')
+  .option('--tags <tags>', 'Tags (comma-separated)')
+  .option('--project-ids <ids>', 'Project IDs (comma-separated)')
+  .action(async (name, options) => {
+    checkEnv();
+
+    try {
+      console.log(`🗺️  Creating roadmap: ${name}`);
+      console.log('');
+
+      const data = {
+        name,
+        start_date: options.startDate,
+        end_date: options.endDate,
+        description: options.description,
+        status: options.status || 'active',
+        created_by: process.env.SAAC_HIVE_AGENT_NAME
+      };
+
+      if (options.tags) {
+        data.tags = options.tags.split(',').map(t => t.trim());
+      }
+
+      if (options.projectIds) {
+        data.project_ids = options.projectIds.split(',').map(id => id.trim());
+      }
+
+      const response = await createRoadmap(data);
+
+      console.log('✅ Roadmap created successfully!');
+      console.log('');
+      console.log(`   ID: ${response.id.substring(0, 8)}`);
+      console.log(`   Name: ${response.name}`);
+      console.log(`   Dates: ${response.start_date} → ${response.end_date}`);
+      console.log(`   Status: ${response.status}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+roadmaps
+  .command('get <roadmap-id>')
+  .description('Get roadmap details with milestones')
+  .action(async (roadmapId) => {
+    checkEnv();
+
+    try {
+      const r = await getRoadmap(roadmapId);
+
+      console.log('');
+      console.log(`🗺️  ${r.name}`);
+      console.log('');
+      console.log(`   ID: ${r.id}`);
+      console.log(`   Status: ${r.status}`);
+      console.log(`   Dates: ${r.start_date} → ${r.end_date}`);
+      console.log('');
+
+      if (r.description) {
+        console.log(`   Description: ${r.description}`);
+        console.log('');
+      }
+
+      if (r.projects && r.projects.length > 0) {
+        console.log(`   📂 Projects (${r.projects.length}):`);
+        r.projects.forEach(p => {
+          console.log(`      - ${p.display_name || p.name} (${p.id.substring(0, 8)})`);
+        });
+        console.log('');
+      }
+
+      if (r.milestones && r.milestones.length > 0) {
+        console.log(`   🎯 Milestones (${r.milestones.length}):`);
+        r.milestones.forEach(m => {
+          console.log(`      ${m.name}`);
+          console.log(`         ID: ${m.id.substring(0, 8)} | Status: ${m.status}`);
+          console.log(`         Dates: ${m.start_date} → ${m.end_date}`);
+          console.log(`         Progress: ${m.calculated_progress || 0}% | Items: ${m.item_count || 0}`);
+        });
+        console.log('');
+      }
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+roadmaps
+  .command('update <roadmap-id>')
+  .description('Update roadmap')
+  .option('--name <text>', 'New name')
+  .option('--description <text>', 'New description')
+  .option('--status <status>', 'New status (active|archived|completed)')
+  .option('--tags <tags>', 'New tags (comma-separated)')
+  .option('--start-date <date>', 'New start date (YYYY-MM-DD)')
+  .option('--end-date <date>', 'New end date (YYYY-MM-DD)')
+  .action(async (roadmapId, options) => {
+    checkEnv();
+
+    try {
+      const updates = {};
+
+      if (options.name) updates.name = options.name;
+      if (options.description) updates.description = options.description;
+      if (options.status) updates.status = options.status;
+      if (options.tags) updates.tags = options.tags.split(',').map(t => t.trim());
+      if (options.startDate) updates.start_date = options.startDate;
+      if (options.endDate) updates.end_date = options.endDate;
+
+      const response = await updateRoadmap(roadmapId, updates);
+
+      console.log('');
+      console.log('✅ Roadmap updated successfully');
+      console.log(`   ID: ${response.id.substring(0, 8)}`);
+      console.log(`   Name: ${response.name}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+roadmaps
+  .command('delete <roadmap-id>')
+  .description('Delete roadmap (cascades to milestones)')
+  .action(async (roadmapId) => {
+    checkEnv();
+
+    try {
+      await deleteRoadmap(roadmapId);
+
+      console.log('');
+      console.log('✅ Roadmap deleted successfully');
+      console.log(`   ID: ${roadmapId}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+roadmaps
+  .command('add-project <roadmap-id> <project-id>')
+  .description('Add project to roadmap')
+  .action(async (roadmapId, projectId) => {
+    checkEnv();
+
+    try {
+      await addRoadmapProject(roadmapId, projectId);
+
+      console.log('');
+      console.log('✅ Project added to roadmap');
+      console.log(`   Roadmap: ${roadmapId}`);
+      console.log(`   Project: ${projectId}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+roadmaps
+  .command('remove-project <roadmap-id> <project-id>')
+  .description('Remove project from roadmap')
+  .action(async (roadmapId, projectId) => {
+    checkEnv();
+
+    try {
+      await removeRoadmapProject(roadmapId, projectId);
+
+      console.log('');
+      console.log('✅ Project removed from roadmap');
+      console.log(`   Roadmap: ${roadmapId}`);
+      console.log(`   Project: ${projectId}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+roadmaps
+  .command('gantt <roadmap-id>')
+  .description('Get Gantt chart data for roadmap')
+  .action(async (roadmapId) => {
+    checkEnv();
+
+    try {
+      const response = await getRoadmapGantt(roadmapId);
+
+      console.log('');
+      console.log(`📊 Gantt Chart: ${response.roadmap.name}`);
+      console.log('');
+
+      if (response.tasks.length === 0) {
+        console.log('   No milestones found');
+        console.log('');
+        return;
+      }
+
+      response.tasks.forEach(task => {
+        console.log(`   ${task.text}`);
+        console.log(`      Dates: ${task.start_date} → ${task.end_date}`);
+        console.log(`      Progress: ${Math.round(task.progress * 100)}%`);
+        console.log(`      Status: ${task.status} | Items: ${task.item_count}`);
+        console.log('');
+      });
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+// ============================================================================
+// MILESTONES Commands - Time-bound goals within roadmaps
+// ============================================================================
+const milestones = program
+  .command('milestones')
+  .description('Manage roadmap milestones');
+
+milestones
+  .command('list <roadmap-id>')
+  .description('List milestones for roadmap')
+  .action(async (roadmapId) => {
+    checkEnv();
+
+    try {
+      const response = await listMilestones(roadmapId);
+
+      console.log('');
+      console.log(`🎯 Milestones (${response.length} found)`);
+      console.log('');
+
+      if (response.length === 0) {
+        console.log('   No milestones found');
+        console.log('');
+        return;
+      }
+
+      response.forEach(milestone => {
+        console.log(`   📌 ${milestone.name}`);
+        console.log(`      ID: ${milestone.id.substring(0, 8)}`);
+        console.log(`      Status: ${milestone.status}`);
+        console.log(`      Dates: ${milestone.start_date} → ${milestone.end_date}`);
+        console.log(`      Progress: ${milestone.calculated_progress || 0}% | Items: ${milestone.item_count || 0}`);
+        console.log('');
+      });
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+milestones
+  .command('create <roadmap-id> <name>')
+  .description('Create new milestone')
+  .requiredOption('--start-date <date>', 'Start date (YYYY-MM-DD)')
+  .requiredOption('--end-date <date>', 'End date (YYYY-MM-DD)')
+  .option('--description <text>', 'Milestone description')
+  .option('--status <status>', 'Status (pending|in_progress|completed|cancelled)')
+  .option('--tags <tags>', 'Tags (comma-separated)')
+  .option('--color <hex>', 'Color hex code (e.g., #2563EB)')
+  .action(async (roadmapId, name, options) => {
+    checkEnv();
+
+    try {
+      console.log(`🎯 Creating milestone: ${name}`);
+      console.log('');
+
+      const data = {
+        name,
+        start_date: options.startDate,
+        end_date: options.endDate,
+        description: options.description,
+        status: options.status || 'pending',
+        color: options.color
+      };
+
+      if (options.tags) {
+        data.tags = options.tags.split(',').map(t => t.trim());
+      }
+
+      const response = await createMilestone(roadmapId, data);
+
+      console.log('✅ Milestone created successfully!');
+      console.log('');
+      console.log(`   ID: ${response.id.substring(0, 8)}`);
+      console.log(`   Name: ${response.name}`);
+      console.log(`   Dates: ${response.start_date} → ${response.end_date}`);
+      console.log(`   Status: ${response.status}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+milestones
+  .command('update <milestone-id>')
+  .description('Update milestone (including moving to different roadmap)')
+  .option('--roadmap-id <id>', 'Move to different roadmap (short or long UUID)')
+  .option('--name <text>', 'New name')
+  .option('--description <text>', 'New description')
+  .option('--status <status>', 'New status (pending|in_progress|completed|cancelled)')
+  .option('--tags <tags>', 'New tags (comma-separated)')
+  .option('--start-date <date>', 'New start date (YYYY-MM-DD)')
+  .option('--end-date <date>', 'New end date (YYYY-MM-DD)')
+  .option('--color <hex>', 'New color hex code')
+  .action(async (milestoneId, options) => {
+    checkEnv();
+
+    try {
+      const updates = {};
+
+      if (options.roadmapId) updates.roadmap_id = options.roadmapId;
+      if (options.name) updates.name = options.name;
+      if (options.description) updates.description = options.description;
+      if (options.status) updates.status = options.status;
+      if (options.tags) updates.tags = options.tags.split(',').map(t => t.trim());
+      if (options.startDate) updates.start_date = options.startDate;
+      if (options.endDate) updates.end_date = options.endDate;
+      if (options.color) updates.color = options.color;
+
+      const response = await updateMilestone(milestoneId, updates);
+
+      console.log('');
+      console.log('✅ Milestone updated successfully');
+      console.log(`   ID: ${response.id.substring(0, 8)}`);
+      console.log(`   Name: ${response.name}`);
+      if (options.roadmapId) {
+        console.log(`   Moved to roadmap: ${options.roadmapId}`);
+      }
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+milestones
+  .command('delete <milestone-id>')
+  .description('Delete milestone (cascades to items)')
+  .action(async (milestoneId) => {
+    checkEnv();
+
+    try {
+      await deleteMilestone(milestoneId);
+
+      console.log('');
+      console.log('✅ Milestone deleted successfully');
+      console.log(`   ID: ${milestoneId}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+milestones
+  .command('add-item <milestone-id>')
+  .description('Add item to milestone')
+  .requiredOption('--type <type>', 'Item type (bug|feature|test_case|support_ticket|po_task|test_plan)')
+  .requiredOption('--id <id>', 'Item ID (short or long UUID)')
+  .action(async (milestoneId, options) => {
+    checkEnv();
+
+    try {
+      const data = {
+        item_type: options.type,
+        item_id: options.id,
+        added_by: process.env.SAAC_HIVE_AGENT_NAME
+      };
+
+      await addMilestoneItem(milestoneId, data);
+
+      console.log('');
+      console.log('✅ Item added to milestone');
+      console.log(`   Milestone: ${milestoneId}`);
+      console.log(`   Type: ${options.type}`);
+      console.log(`   ID: ${options.id}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+milestones
+  .command('remove-item <milestone-id> <item-id>')
+  .description('Remove item from milestone')
+  .action(async (milestoneId, itemId) => {
+    checkEnv();
+
+    try {
+      await removeMilestoneItem(milestoneId, itemId);
+
+      console.log('');
+      console.log('✅ Item removed from milestone');
+      console.log(`   Milestone: ${milestoneId}`);
+      console.log(`   Item: ${itemId}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
   });
 
 // ============================================================================

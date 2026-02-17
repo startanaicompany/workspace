@@ -354,6 +354,155 @@ async function updateTicket(ticketId, updates) {
   return response.data;
 }
 
+// ============================================================================
+// ROADMAPS - Roadmap planning with time boundaries
+// ============================================================================
+
+/**
+ * List roadmaps
+ */
+async function listRoadmaps(filters = {}) {
+  const client = createClient();
+  const response = await client.get('/api/roadmaps', {
+    params: filters
+  });
+  return response.data;
+}
+
+/**
+ * Create roadmap
+ */
+async function createRoadmap(data) {
+  const client = createClient();
+  const response = await client.post('/api/roadmaps', data);
+  return response.data;
+}
+
+/**
+ * Get roadmap
+ */
+async function getRoadmap(roadmapId) {
+  const client = createClient();
+  const response = await client.get(`/api/roadmaps/${roadmapId}`);
+  return response.data;
+}
+
+/**
+ * Update roadmap
+ */
+async function updateRoadmap(roadmapId, updates) {
+  const client = createClient();
+  const response = await client.put(`/api/roadmaps/${roadmapId}`, updates);
+  return response.data;
+}
+
+/**
+ * Delete roadmap
+ */
+async function deleteRoadmap(roadmapId) {
+  const client = createClient();
+  const response = await client.delete(`/api/roadmaps/${roadmapId}`);
+  return response.data;
+}
+
+/**
+ * Add project to roadmap
+ */
+async function addRoadmapProject(roadmapId, projectId) {
+  const client = createClient();
+  const response = await client.post(`/api/roadmaps/${roadmapId}/projects`, {
+    project_id: projectId
+  });
+  return response.data;
+}
+
+/**
+ * Remove project from roadmap
+ */
+async function removeRoadmapProject(roadmapId, projectId) {
+  const client = createClient();
+  const response = await client.delete(`/api/roadmaps/${roadmapId}/projects/${projectId}`);
+  return response.data;
+}
+
+/**
+ * Get roadmap Gantt chart data
+ */
+async function getRoadmapGantt(roadmapId) {
+  const client = createClient();
+  const response = await client.get(`/api/roadmaps/${roadmapId}/gantt`);
+  return response.data;
+}
+
+// ============================================================================
+// MILESTONES - Time-bound goals within roadmaps
+// ============================================================================
+
+/**
+ * List milestones for roadmap
+ */
+async function listMilestones(roadmapId) {
+  const client = createClient();
+  const response = await client.get(`/api/roadmaps/${roadmapId}/milestones`);
+  return response.data;
+}
+
+/**
+ * Create milestone
+ */
+async function createMilestone(roadmapId, data) {
+  const client = createClient();
+  const response = await client.post(`/api/roadmaps/${roadmapId}/milestones`, data);
+  return response.data;
+}
+
+/**
+ * Update milestone (including moving to different roadmap)
+ */
+async function updateMilestone(milestoneId, updates) {
+  const client = createClient();
+  const response = await client.put(`/api/milestones/${milestoneId}`, updates);
+  return response.data;
+}
+
+/**
+ * Delete milestone
+ */
+async function deleteMilestone(milestoneId) {
+  const client = createClient();
+  const response = await client.delete(`/api/milestones/${milestoneId}`);
+  return response.data;
+}
+
+/**
+ * Reorder milestones
+ */
+async function reorderMilestones(milestoneOrders) {
+  const client = createClient();
+  const response = await client.post('/api/milestones/reorder', {
+    milestone_orders: milestoneOrders
+  });
+  return response.data;
+}
+
+/**
+ * Add item to milestone
+ */
+async function addMilestoneItem(milestoneId, data) {
+  const client = createClient();
+  const response = await client.post(`/api/milestones/${milestoneId}/items`, data);
+  return response.data;
+}
+
+/**
+ * Remove item from milestone
+ */
+async function removeMilestoneItem(milestoneId, itemId) {
+  const client = createClient();
+  const response = await client.delete(`/api/milestones/${milestoneId}/items/${itemId}`);
+  return response.data;
+}
+
 module.exports = {
   createClient,
   uploadFile,
@@ -389,5 +538,20 @@ module.exports = {
   completeExecution,
   getExecution,
   listExecutions,
-  updateTicket
+  updateTicket,
+  listRoadmaps,
+  createRoadmap,
+  getRoadmap,
+  updateRoadmap,
+  deleteRoadmap,
+  addRoadmapProject,
+  removeRoadmapProject,
+  getRoadmapGantt,
+  listMilestones,
+  createMilestone,
+  updateMilestone,
+  deleteMilestone,
+  reorderMilestones,
+  addMilestoneItem,
+  removeMilestoneItem
 };
