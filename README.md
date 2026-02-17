@@ -2,7 +2,7 @@
 
 Official CLI for StartAnAiCompany Workspace Management - file storage with attachments, features, bugs, test cases, test executions, roadmaps, milestones, and project management.
 
-**Version:** 1.11.1
+**Version:** 1.11.2
 **License:** MIT
 **Homepage:** https://workspace.startanaicompany.com
 
@@ -2209,6 +2209,11 @@ workspace test-cases create "Test" \
 ---
 
 ## Version History
+
+### v1.11.2 (2026-02-17)
+- **Fixed:** Display issues showing "by undefined" in features and files list commands
+- **Fixed:** Changed `created_by_agent` and `created_by_agent_name` to `created_by` (matches backend response)
+- **Improved:** Added fallback to 'N/A' if creator field is missing
 
 ### v1.11.1 (2026-02-17)
 - **CRITICAL FIX:** All tickets and projects commands were broken with "function is not defined" errors
