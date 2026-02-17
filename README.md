@@ -2,7 +2,7 @@
 
 Official CLI for StartAnAiCompany Workspace Management - file storage with attachments, features, bugs, test cases, test executions, roadmaps, milestones, and project management.
 
-**Version:** 1.11.0
+**Version:** 1.11.1
 **License:** MIT
 **Homepage:** https://workspace.startanaicompany.com
 
@@ -2209,6 +2209,11 @@ workspace test-cases create "Test" \
 ---
 
 ## Version History
+
+### v1.11.1 (2026-02-17)
+- **CRITICAL FIX:** All tickets and projects commands were broken with "function is not defined" errors
+- **Fixed:** Added missing imports for 7 new API functions (listProjects, getProject, createProject, listTickets, createTicket, respondToTicket, resolveTicket)
+- **Impact:** All commands now work correctly
 
 ### v1.11.0 (2026-02-17)
 - **New:** Complete tickets system implementation (8 commands eliminated fake stubs)
