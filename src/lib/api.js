@@ -345,6 +345,15 @@ async function listExecutions(filters = {}) {
   return response.data;
 }
 
+/**
+ * Update ticket
+ */
+async function updateTicket(ticketId, updates) {
+  const client = createClient();
+  const response = await client.put(`/api/tickets/${ticketId}`, updates);
+  return response.data;
+}
+
 module.exports = {
   createClient,
   uploadFile,
@@ -379,5 +388,6 @@ module.exports = {
   updateExecutionStep,
   completeExecution,
   getExecution,
-  listExecutions
+  listExecutions,
+  updateTicket
 };

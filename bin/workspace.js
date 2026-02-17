@@ -12,7 +12,7 @@ const { Command } = require('commander');
 const { readFileSync, writeFileSync } = require('fs');
 const { join, basename } = require('path');
 const { prepareFileForUpload, formatFileSize, formatExpiry } = require('../src/lib/fileUtils');
-const { uploadFile, downloadFile, listFiles, getFileMetadata, deleteFile: apiDeleteFile, updateFile: apiUpdateFile, getProjectByName, listFeatures, createFeature, getFeature, updateFeature, deleteFeature, addFeatureComment, listFeatureComments, listBugs, createBug, getBug, updateBug, deleteBug, addBugComment, listBugComments, listTestCases, createTestCase, getTestCase, updateTestCase, deleteTestCase, addTestCaseComment, listTestCaseComments, startExecution, updateExecutionStep, completeExecution, getExecution, listExecutions } = require('../src/lib/api');
+const { uploadFile, downloadFile, listFiles, getFileMetadata, deleteFile: apiDeleteFile, updateFile: apiUpdateFile, getProjectByName, listFeatures, createFeature, getFeature, updateFeature, deleteFeature, addFeatureComment, listFeatureComments, listBugs, createBug, getBug, updateBug, deleteBug, addBugComment, listBugComments, listTestCases, createTestCase, getTestCase, updateTestCase, deleteTestCase, addTestCaseComment, listTestCaseComments, startExecution, updateExecutionStep, completeExecution, getExecution, listExecutions, updateTicket } = require('../src/lib/api');
 const axios = require('axios');
 
 // Get package.json for version
@@ -299,6 +299,7 @@ files
   .option('--expire <minutes>', 'New TTL in minutes')
   .option('--description <text>', 'New description')
   .option('--tags <tags>', 'New tags (comma-separated)')
+  .option('--project-id <id>', 'Move to different project (short or long UUID)')
   .action(async (remotePath, options) => {
     checkEnv();
 
@@ -319,6 +320,10 @@ files
         updates.tags = options.tags.split(',').map(t => t.trim());
       }
 
+      if (options.projectId) {
+        updates.project_id = options.projectId;
+      }
+
       const response = await apiUpdateFile(remotePath, updates);
 
       console.log('');
@@ -326,6 +331,12 @@ files
       console.log(`   Path: ${response.file.path}`);
       if (options.expire) {
         console.log(`   New Expiry: ${new Date(response.file.expire_at).toLocaleString()}`);
+      }
+      if (options.tags) {
+        console.log(`   New Tags: ${response.file.tags?.join(', ') || 'none'}`);
+      }
+      if (options.projectId) {
+        console.log(`   New Project ID: ${response.file.project_id?.substring(0, 8)}`);
       }
       console.log('');
     } catch (error) {
@@ -529,6 +540,8 @@ features
   .option('--status <status>', 'New status (requested|in_progress|completed|rejected)')
   .option('--priority <level>', 'New priority (low|medium|high|critical)')
   .option('--description <text>', 'New description')
+  .option('--tags <tags>', 'New tags (comma-separated)')
+  .option('--project-id <id>', 'Move to different project (short or long UUID)')
   .action(async (featureId, options) => {
     checkEnv();
 
@@ -540,6 +553,8 @@ features
       if (options.status) updates.status = options.status;
       if (options.priority) updates.priority = options.priority;
       if (options.description) updates.description = options.description;
+      if (options.tags) updates.tags = options.tags.split(',').map(t => t.trim());
+      if (options.projectId) updates.project_id = options.projectId;
 
       const response = await updateFeature(featureId, updates);
 
@@ -552,6 +567,12 @@ features
       }
       if (options.priority) {
         console.log(`   New Priority: ${response.featureRequest.priority}`);
+      }
+      if (options.tags) {
+        console.log(`   New Tags: ${response.featureRequest.tags?.join(', ') || 'none'}`);
+      }
+      if (options.projectId) {
+        console.log(`   New Project ID: ${response.featureRequest.project_id?.substring(0, 8)}`);
       }
       console.log('');
 
@@ -783,6 +804,8 @@ bugs
   .option('--status <status>', 'New status (open|in_progress|resolved|closed)')
   .option('--severity <level>', 'New severity (low|medium|high|critical)')
   .option('--description <text>', 'New description')
+  .option('--tags <tags>', 'New tags (comma-separated)')
+  .option('--project-id <id>', 'Move to different project (short or long UUID)')
   .action(async (bugId, options) => {
     checkEnv();
 
@@ -792,6 +815,8 @@ bugs
       if (options.status) updates.status = options.status;
       if (options.severity) updates.severity = options.severity;
       if (options.description) updates.description = options.description;
+      if (options.tags) updates.tags = options.tags.split(',').map(t => t.trim());
+      if (options.projectId) updates.project_id = options.projectId;
 
       const response = await updateBug(bugId, updates);
 
@@ -804,6 +829,12 @@ bugs
       }
       if (options.severity) {
         console.log(`   New Severity: ${response.bug.severity}`);
+      }
+      if (options.tags) {
+        console.log(`   New Tags: ${response.bug.tags?.join(', ') || 'none'}`);
+      }
+      if (options.projectId) {
+        console.log(`   New Project ID: ${response.bug.project_id?.substring(0, 8)}`);
       }
       console.log('');
 
@@ -1069,6 +1100,8 @@ testCases
   .option('--description <text>', 'New description')
   .option('--priority <level>', 'New priority')
   .option('--active <boolean>', 'Set active status (true/false)')
+  .option('--tags <tags>', 'New tags (comma-separated)')
+  .option('--project-id <id>', 'Move to different project (short or long UUID)')
   .action(async (testCaseId, options) => {
     checkEnv();
 
@@ -1079,6 +1112,8 @@ testCases
       if (options.description) updates.description = options.description;
       if (options.priority) updates.priority = options.priority;
       if (options.active !== undefined) updates.is_active = options.active === 'true';
+      if (options.tags) updates.tags = options.tags.split(',').map(t => t.trim());
+      if (options.projectId) updates.project_id = options.projectId;
 
       const response = await updateTestCase(testCaseId, updates);
 
@@ -1086,6 +1121,12 @@ testCases
       console.log('✅ Test case updated successfully');
       console.log(`   ID: ${response.testCase.id.substring(0, 8)}`);
       console.log(`   Name: ${response.testCase.name}`);
+      if (options.tags) {
+        console.log(`   New Tags: ${response.testCase.tags?.join(', ') || 'none'}`);
+      }
+      if (options.projectId) {
+        console.log(`   New Project ID: ${response.testCase.project_id?.substring(0, 8)}`);
+      }
       console.log('');
 
     } catch (error) {
@@ -1429,9 +1470,43 @@ tickets
   .description('Update ticket')
   .option('--status <status>', 'New status')
   .option('--priority <level>', 'New priority')
+  .option('--tags <tags>', 'New tags (comma-separated)')
+  .option('--project-id <id>', 'Move to different project (short or long UUID)')
   .action(async (ticketId, options) => {
     checkEnv();
-    console.log('Would update ticket:', { ticketId, options });
+
+    try {
+      const updates = {};
+
+      if (options.status) updates.status = options.status;
+      if (options.priority) updates.priority = options.priority;
+      if (options.tags) updates.tags = options.tags.split(',').map(t => t.trim());
+      if (options.projectId) updates.project_id = options.projectId;
+
+      const response = await updateTicket(ticketId, updates);
+
+      console.log('');
+      console.log('✅ Ticket updated successfully');
+      console.log(`   ID: ${response.ticket.id.substring(0, 8)}`);
+      console.log(`   Title: ${response.ticket.title}`);
+      if (options.status) {
+        console.log(`   New Status: ${response.ticket.status}`);
+      }
+      if (options.priority) {
+        console.log(`   New Priority: ${response.ticket.priority}`);
+      }
+      if (options.tags) {
+        console.log(`   New Tags: ${response.ticket.tags?.join(', ') || 'none'}`);
+      }
+      if (options.projectId) {
+        console.log(`   New Project ID: ${response.ticket.project_id?.substring(0, 8)}`);
+      }
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
   });
 
 tickets
