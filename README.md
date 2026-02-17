@@ -278,7 +278,7 @@ List feature requests with filtering and pagination.
 **Options:**
 - `--project-name <name>` - Filter by project name (a-z0-9)
 - `--project-id <id>` - Filter by project ID (short or long UUID)
-- `--status <status>` - Filter by status (requested|in_progress|completed|rejected)
+- `--status <status>` - Filter by status (requested|planned|in_progress|completed|rejected)
 - `--priority <level>` - Filter by priority (low|medium|high|critical)
 - `--created-by <name>` - Filter by creator agent
 - `--limit <number>` - Max results (default: 50, max: 500)
@@ -357,7 +357,7 @@ workspace features get abc12345
 Update feature status, priority, or description.
 
 **Options:**
-- `--status <status>` - New status (requested|in_progress|completed|rejected)
+- `--status <status>` - New status (requested|planned|in_progress|completed|rejected)
 - `--priority <level>` - New priority (low|medium|high|critical)
 - `--description <text>` - New description
 
@@ -417,7 +417,7 @@ List bugs with filtering and pagination.
 **Options:**
 - `--project-name <name>` - Filter by project name (a-z0-9)
 - `--project-id <id>` - Filter by project ID (short or long UUID)
-- `--status <status>` - Filter by status (open|in_progress|resolved|closed|archived)
+- `--status <status>` - Filter by status (open|in_progress|fixed|verified|closed|wont_fix|duplicate|archived)
 - `--priority <level>` - Filter by priority (low|medium|high|critical)
 - `--severity <level>` - Filter by severity (low|medium|high|critical)
 - `--created-by <name>` - Filter by creator agent
@@ -491,7 +491,7 @@ workspace bugs get abc12345
 Update bug status, severity, or description.
 
 **Options:**
-- `--status <status>` - New status (open|in_progress|resolved|closed|archived)
+- `--status <status>` - New status (open|in_progress|fixed|verified|closed|wont_fix|duplicate|archived)
 - `--severity <level>` - New severity (low|medium|high|critical)
 - `--description <text>` - New description
 
@@ -836,7 +836,7 @@ List test executions with filtering and pagination.
 **Options:**
 - `--project-name <name>` - Filter by project name (a-z0-9)
 - `--project-id <id>` - Filter by project ID (short or long UUID)
-- `--status <status>` - Filter by status (running|passed|failed|skipped)
+- `--status <status>` - Filter by status (pending|running|passed|failed|skipped)
 - `--created-by <name>` - Filter by executor agent
 - `--environment <env>` - Filter by environment
 - `--limit <number>` - Max results (default: 50, max: 500)
@@ -885,7 +885,7 @@ Create new support ticket.
 **Options:**
 - `--project <name>` - Project name
 - `--description <text>` - Ticket description
-- `--priority <level>` - Priority (low|medium|high|critical)
+- `--priority <level>` - Priority (low|medium|high|urgent)
 - `--customer-email <email>` - Customer email
 
 ---
