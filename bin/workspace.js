@@ -12,7 +12,7 @@ const { Command } = require('commander');
 const { readFileSync, writeFileSync } = require('fs');
 const { join, basename } = require('path');
 const { prepareFileForUpload, formatFileSize, formatExpiry } = require('../src/lib/fileUtils');
-const { uploadFile, downloadFile, listFiles, getFileMetadata, deleteFile: apiDeleteFile, updateFile: apiUpdateFile, getProjectByName, listFeatures, createFeature, getFeature, updateFeature, deleteFeature, addFeatureComment, listFeatureComments, listBugs, createBug, getBug, updateBug, deleteBug, addBugComment, listBugComments, listTestCases, createTestCase, getTestCase, updateTestCase, deleteTestCase, addTestCaseComment, listTestCaseComments } = require('../src/lib/api');
+const { uploadFile, downloadFile, listFiles, getFileMetadata, deleteFile: apiDeleteFile, updateFile: apiUpdateFile, getProjectByName, listFeatures, createFeature, getFeature, updateFeature, deleteFeature, addFeatureComment, listFeatureComments, listBugs, createBug, getBug, updateBug, deleteBug, addBugComment, listBugComments, listTestCases, createTestCase, getTestCase, updateTestCase, deleteTestCase, addTestCaseComment, listTestCaseComments, startExecution, updateExecutionStep, completeExecution, getExecution, listExecutions } = require('../src/lib/api');
 
 // Get package.json for version
 const packageJson = JSON.parse(
@@ -1064,30 +1064,232 @@ const executions = program
 executions
   .command('start <test-case-id>')
   .description('Start test execution')
-  .option('--agent <name>', 'Executor agent name')
-  .option('--environment <env>', 'Test environment')
+  .option('--environment <env>', 'Environment (staging|production|development)')
+  .option('--browser <name>', 'Browser name')
+  .option('--browser-version <version>', 'Browser version')
   .action(async (testCaseId, options) => {
     checkEnv();
-    console.log('Would start execution:', { testCaseId, options });
+
+    try {
+      console.log(`🚀 Starting execution for test case: ${testCaseId}`);
+      console.log('');
+
+      const data = {
+        test_case_id: testCaseId,
+        agent_name: process.env.SAAC_HIVE_AGENT_NAME,
+        environment: options.environment || 'staging',
+        browser: options.browser,
+        browser_version: options.browserVersion
+      };
+
+      const response = await startExecution(data);
+
+      console.log('✅ Execution started successfully!');
+      console.log('');
+      console.log(`   Execution ID: ${response.execution.id.substring(0, 8)}`);
+      console.log(`   Status: ${response.execution.status}`);
+      console.log(`   Environment: ${response.execution.environment}`);
+      console.log(`   Agent: ${response.execution.agent_name}`);
+      console.log('');
+      console.log('💡 Next steps:');
+      console.log(`   1. Update step results: workspace executions update-step ${response.execution.id.substring(0, 8)} <step-number> --status passed`);
+      console.log(`   2. Complete execution: workspace executions complete ${response.execution.id.substring(0, 8)} --status passed --comment "..."`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      if (error.response?.data?.details) {
+        console.error('   Details:', error.response.data.details);
+      }
+      process.exit(1);
+    }
+  });
+
+executions
+  .command('update-step <execution-id> <step-number>')
+  .description('Update execution step result')
+  .option('--status <status>', 'Step status (passed|failed|skipped) - REQUIRED')
+  .option('--actual-result <text>', 'Actual result observed')
+  .option('--error <message>', 'Error message (for failed steps)')
+  .option('--screenshot <url>', 'Screenshot URL')
+  .action(async (executionId, stepNumber, options) => {
+    checkEnv();
+
+    try {
+      if (!options.status) {
+        console.error('❌ Error: --status is required (passed|failed|skipped)');
+        process.exit(1);
+      }
+
+      const data = {
+        status: options.status,
+        actual_result: options.actualResult,
+        error_message: options.error,
+        screenshot_url: options.screenshot
+      };
+
+      const response = await updateExecutionStep(executionId, stepNumber, data);
+
+      console.log('');
+      console.log(`✅ Step ${stepNumber} updated: ${options.status}`);
+      if (response.step.duration_ms) {
+        console.log(`   Duration: ${response.step.duration_ms}ms`);
+      }
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+executions
+  .command('complete <execution-id>')
+  .description('Complete test execution')
+  .option('--status <status>', 'Final status (passed|failed|skipped) - REQUIRED')
+  .option('--comment <text>', 'Execution comment - REQUIRED for QA docs')
+  .option('--error <summary>', 'Error summary (for failed executions)')
+  .action(async (executionId, options) => {
+    checkEnv();
+
+    try {
+      if (!options.status) {
+        console.error('❌ Error: --status is required (passed|failed|skipped)');
+        process.exit(1);
+      }
+
+      if (!options.comment) {
+        console.error('❌ Error: --comment is REQUIRED');
+        console.error('   Comments provide QA documentation for this execution');
+        process.exit(1);
+      }
+
+      const data = {
+        status: options.status,
+        comment: options.comment,
+        error_summary: options.error
+      };
+
+      const response = await completeExecution(executionId, data);
+
+      console.log('');
+      console.log('✅ Execution completed!');
+      console.log('');
+      console.log(`   Status: ${response.execution.status}`);
+      console.log(`   Duration: ${response.execution.duration_ms}ms`);
+      console.log(`   Comment added to test case`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+executions
+  .command('get <execution-id>')
+  .description('Get execution details with step results')
+  .action(async (executionId) => {
+    checkEnv();
+
+    try {
+      const response = await getExecution(executionId);
+      const exec = response.execution;
+
+      console.log('');
+      console.log(`🚀 Execution: ${exec.test_name}`);
+      console.log('');
+      console.log(`   ID: ${exec.id}`);
+      console.log(`   Status: ${exec.status}`);
+      console.log(`   Environment: ${exec.environment}`);
+      console.log(`   Agent: ${exec.agent_name}`);
+      console.log(`   Started: ${new Date(exec.started_at).toLocaleString()}`);
+      if (exec.completed_at) {
+        console.log(`   Completed: ${new Date(exec.completed_at).toLocaleString()}`);
+        console.log(`   Duration: ${exec.duration_ms}ms`);
+      }
+      console.log('');
+
+      // Display step results
+      if (response.steps && response.steps.length > 0) {
+        console.log(`   📋 Step Results (${response.steps.length}):`);
+        console.log('');
+        response.steps.forEach(step => {
+          const statusEmoji = {
+            'passed': '✅',
+            'failed': '❌',
+            'skipped': '⏭️'
+          }[step.result_status] || '⚪';
+
+          console.log(`      ${step.step_number}. ${step.action || step.description} ${statusEmoji}`);
+          if (step.expected_result) {
+            console.log(`         Expected: ${step.expected_result}`);
+          }
+          if (step.actual_result) {
+            console.log(`         Actual: ${step.actual_result}`);
+          }
+          if (step.error_message) {
+            console.log(`         Error: ${step.error_message}`);
+          }
+          console.log('');
+        });
+      }
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      if (error.response?.status === 404) {
+        console.error('   Execution not found');
+      }
+      process.exit(1);
+    }
   });
 
 executions
   .command('list')
   .description('List test executions')
   .option('--project <name>', 'Filter by project')
-  .option('--status <status>', 'Filter by status')
+  .option('--status <status>', 'Filter by status (running|passed|failed|skipped)')
   .option('--agent <name>', 'Filter by executor')
+  .option('--limit <number>', 'Max results (default: 50)')
   .action(async (options) => {
     checkEnv();
-    console.log('Would list executions with options:', options);
-  });
 
-executions
-  .command('get <execution-id>')
-  .description('Get execution details')
-  .action(async (executionId) => {
-    checkEnv();
-    console.log('Would get execution:', executionId);
+    try {
+      const response = await listExecutions(options);
+
+      console.log('');
+      console.log(`🚀 Test Executions (${response.count || response.executions.length} found)`);
+      console.log('');
+
+      if (response.executions.length === 0) {
+        console.log('   No executions found');
+        console.log('');
+        return;
+      }
+
+      response.executions.forEach(exec => {
+        const statusEmoji = {
+          'running': '🔄',
+          'passed': '✅',
+          'failed': '❌',
+          'skipped': '⏭️'
+        }[exec.status] || '⚪';
+
+        console.log(`   ${statusEmoji} ${exec.test_name}`);
+        console.log(`      ID: ${exec.id.substring(0, 8)}`);
+        console.log(`      Status: ${exec.status} | Environment: ${exec.environment}`);
+        console.log(`      Agent: ${exec.agent_name}`);
+        console.log(`      Started: ${new Date(exec.started_at).toLocaleString()}`);
+        if (exec.completed_at) {
+          console.log(`      Duration: ${exec.duration_ms}ms`);
+        }
+        console.log('');
+      });
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
   });
 
 executions

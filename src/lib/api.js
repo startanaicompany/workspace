@@ -298,6 +298,53 @@ async function listTestCaseComments(testCaseId) {
   return response.data;
 }
 
+/**
+ * Start test execution
+ */
+async function startExecution(data) {
+  const client = createClient();
+  const response = await client.post('/api/executions/start', data);
+  return response.data;
+}
+
+/**
+ * Update execution step result
+ */
+async function updateExecutionStep(executionId, stepNumber, data) {
+  const client = createClient();
+  const response = await client.put(`/api/executions/${executionId}/steps/${stepNumber}`, data);
+  return response.data;
+}
+
+/**
+ * Complete execution
+ */
+async function completeExecution(executionId, data) {
+  const client = createClient();
+  const response = await client.post(`/api/executions/${executionId}/complete`, data);
+  return response.data;
+}
+
+/**
+ * Get execution details
+ */
+async function getExecution(executionId) {
+  const client = createClient();
+  const response = await client.get(`/api/executions/${executionId}`);
+  return response.data;
+}
+
+/**
+ * List executions
+ */
+async function listExecutions(filters = {}) {
+  const client = createClient();
+  const response = await client.get('/api/executions', {
+    params: filters
+  });
+  return response.data;
+}
+
 module.exports = {
   createClient,
   uploadFile,
@@ -327,5 +374,10 @@ module.exports = {
   updateTestCase,
   deleteTestCase,
   addTestCaseComment,
-  listTestCaseComments
+  listTestCaseComments,
+  startExecution,
+  updateExecutionStep,
+  completeExecution,
+  getExecution,
+  listExecutions
 };
