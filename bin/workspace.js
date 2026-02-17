@@ -873,7 +873,7 @@ testCases
   .description('List test cases')
   .option('--project-name <name>', 'Filter by project name (a-z0-9)')
   .option('--project-id <id>', 'Filter by project ID (short or long UUID)')
-  .option('--suite <name>', 'Filter by suite')
+  .option('--tags <tags>', 'Filter by tags (comma-separated)')
   .option('--status <status>', 'Filter by status (active|inactive|all, default: active)')
   .option('--priority <level>', 'Filter by priority')
   .option('--role <name>', 'Filter by role')
@@ -888,7 +888,7 @@ testCases
       const filters = {};
       if (options.projectName) filters.project_name = options.projectName;
       if (options.projectId) filters.project_id = options.projectId;
-      if (options.suite) filters.suite = options.suite;
+      if (options.tags) filters.tags = options.tags;
       if (options.status) filters.status = options.status;
       if (options.priority) filters.priority = options.priority;
       if (options.role) filters.role = options.role;
@@ -933,7 +933,6 @@ testCases
   .command('create <name>')
   .description('Create new test case with steps')
   .option('--project <name>', 'Project name (required)')
-  .option('--suite <name>', 'Suite name (default: General)')
   .option('--description <text>', 'Test description')
   .option('--priority <level>', 'Priority (low|medium|high|critical)')
   .option('--role <name>', 'User role for testing')
@@ -967,7 +966,6 @@ testCases
       const data = {
         name,
         project: options.project,
-        suite: options.suite,
         description: options.description,
         priority: options.priority || 'medium',
         role: options.role,

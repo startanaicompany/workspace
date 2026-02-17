@@ -279,7 +279,7 @@ npm publish --access public
 
 **Current coordination:**
 - ✅ Filter standardization complete (created_by, dual project filtering)
-- 🔄 Pending: Remove suite system (use tags only)
+- ✅ Suite system removed (tags only for AI agents)
 
 ---
 
@@ -301,6 +301,7 @@ npm publish --access public
 
 ## Version History
 
+- **v1.7.0** - Suite system removed (tags only for AI agents)
 - **v1.6.0** - Dual project filtering, pagination, created_by standardization, manual command
 - **v1.5.0** - Test executions
 - **v1.4.0** - Test cases with steps
