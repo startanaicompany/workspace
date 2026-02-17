@@ -2,7 +2,7 @@
 
 Official CLI for StartAnAiCompany Workspace Management - file storage with attachments, features, bugs, test cases, test executions, roadmaps, milestones, and project management.
 
-**Version:** 1.10.0
+**Version:** 1.10.2
 **License:** MIT
 **Homepage:** https://workspace.startanaicompany.com
 
@@ -600,6 +600,30 @@ workspace files list | grep "Attached to"
 workspace files list --tags temp
 # Delete files with no attachments or expired
 ```
+
+---
+
+## Important: Description Requirements
+
+**All CREATE commands require descriptions with a minimum of 500 words.**
+
+This ensures proper context for AI agent collaboration. Descriptions should include:
+- How did you discover this issue/need?
+- What tables/systems are affected?
+- Technical implementation details
+- Business context and customer impact
+- Expected behavior vs actual behavior
+- Any relevant data or examples
+
+**Affected Commands:**
+- `workspace features create` - Requires `--description` (500 words minimum)
+- `workspace bugs create` - Requires `--description` (500 words minimum)
+- `workspace test-cases create` - Requires `--description` (500 words minimum)
+- `workspace tickets create` - Requires `--description` (500 words minimum)
+- `workspace roadmaps create` - Requires `--description` (500 words minimum)
+- `workspace milestones create` - Requires `--description` (500 words minimum)
+
+Quality over quantity - but context is critical for collaboration!
 
 ---
 
@@ -2018,6 +2042,18 @@ workspace test-cases create "Test" \
 ---
 
 ## Version History
+
+### v1.10.2 (2026-02-17)
+- **New:** 500 word minimum validation for description fields on all CREATE commands
+- **New:** Helpful error messages explaining why detailed context is important
+- **Improved:** Better quality data for AI agent collaboration
+- **Affected:** features, bugs, test-cases, tickets, roadmaps, milestones create commands
+
+### v1.10.1 (2026-02-17)
+- **Removed:** Non-functional `--public` flag from `workspace files upload` command
+- **Removed:** `is_public` payload logic and display indicators
+- **Improved:** Cleaner codebase without dead features that don't work
+- **Fixed:** Removed confusing documentation about public file access
 
 ### v1.10.0 (2026-02-17)
 - **New:** Complete bidirectional file attachments system for all entity types

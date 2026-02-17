@@ -54,6 +54,64 @@ function checkEnv() {
   }
 }
 
+// Validate description word count (minimum 500 words)
+function validateDescription(description, fieldName = 'description') {
+  if (!description) {
+    console.error(`❌ Error: ${fieldName} is required`);
+    console.error('');
+    console.error('Why is this important?');
+    console.error('');
+    console.error('This description will be read by other AI agents who need detailed context to:');
+    console.error('  • Understand the technical details');
+    console.error('  • Know the business requirements');
+    console.error('  • Reproduce bugs accurately');
+    console.error('  • Implement features correctly');
+    console.error('  • Track progress effectively');
+    console.error('');
+    console.error('Please be specific and include:');
+    console.error('  • How did you discover this issue/need?');
+    console.error('  • What tables/systems are affected?');
+    console.error('  • Technical implementation details');
+    console.error('  • Business context and customer impact');
+    console.error('  • Expected behavior vs actual behavior');
+    console.error('  • Any relevant data or examples');
+    console.error('');
+    console.error('Quality over quantity - but context is critical for collaboration!');
+    process.exit(1);
+  }
+
+  // Count words (split by whitespace and filter empty strings)
+  const words = description.trim().split(/\s+/).filter(word => word.length > 0);
+  const wordCount = words.length;
+  const MIN_WORDS = 500;
+
+  if (wordCount < MIN_WORDS) {
+    console.error(`❌ Error: Too few words in the ${fieldName} (found ${wordCount}, minimum ${MIN_WORDS} required)`);
+    console.error('');
+    console.error('Why is this important?');
+    console.error('');
+    console.error('This description will be read by other AI agents who need detailed context to:');
+    console.error('  • Understand the technical details');
+    console.error('  • Know the business requirements');
+    console.error('  • Reproduce bugs accurately');
+    console.error('  • Implement features correctly');
+    console.error('  • Track progress effectively');
+    console.error('');
+    console.error('Please be specific and include:');
+    console.error('  • How did you discover this issue/need?');
+    console.error('  • What tables/systems are affected?');
+    console.error('  • Technical implementation details');
+    console.error('  • Business context and customer impact');
+    console.error('  • Expected behavior vs actual behavior');
+    console.error('  • Any relevant data or examples');
+    console.error('');
+    console.error('Quality over quantity - but context is critical for collaboration!');
+    process.exit(1);
+  }
+
+  return true;
+}
+
 // ============================================================================
 // FILES Commands - File storage with auto-expiry
 // ============================================================================
@@ -477,13 +535,16 @@ features
   .command('create <title>')
   .description('Create new feature request')
   .option('--project <name>', 'Project name (will lookup UUID automatically)')
-  .option('--description <text>', 'Feature description')
+  .requiredOption('--description <text>', 'Feature description (minimum 500 words)')
   .option('--priority <level>', 'Priority (low|medium|high|critical)')
   .option('--requested-by <name>', 'Requester name')
   .action(async (title, options) => {
     checkEnv();
 
     try {
+      // Validate description has minimum 500 words
+      validateDescription(options.description, 'description');
+
       console.log(`🚀 Creating feature: ${title}`);
       console.log('');
 
@@ -943,7 +1004,7 @@ bugs
   .command('create <title>')
   .description('Create new bug report')
   .option('--project <name>', 'Project name')
-  .option('--description <text>', 'Bug description')
+  .requiredOption('--description <text>', 'Bug description (minimum 500 words)')
   .option('--severity <level>', 'Severity (low|medium|high|critical)')
   .option('--steps <text>', 'Steps to reproduce')
   .option('--environment <env>', 'Environment (staging|production)')
@@ -951,13 +1012,16 @@ bugs
     checkEnv();
 
     try {
+      // Validate description has minimum 500 words
+      validateDescription(options.description, 'description');
+
       console.log(`🐛 Creating bug: ${title}`);
       console.log('');
 
       const data = {
         project: options.project,
         title,
-        description: options.description || '',
+        description: options.description,
         severity: options.severity || 'medium',
         steps_to_reproduce: options.steps,
         environment: options.environment || 'staging'
@@ -1382,7 +1446,7 @@ testCases
   .command('create <name>')
   .description('Create new test case with steps')
   .option('--project <name>', 'Project name (required)')
-  .option('--description <text>', 'Test description')
+  .requiredOption('--description <text>', 'Test description (minimum 500 words)')
   .option('--priority <level>', 'Priority (low|medium|high|critical)')
   .option('--role <name>', 'User role for testing')
   .option('--page-url <url>', 'Page URL to test')
@@ -1396,6 +1460,9 @@ testCases
         console.error('❌ Error: --project is required');
         process.exit(1);
       }
+
+      // Validate description has minimum 500 words
+      validateDescription(options.description, 'description');
 
       console.log(`📝 Creating test case: ${name}`);
       console.log('');
@@ -2054,11 +2121,15 @@ tickets
   .command('create <title>')
   .description('Create new support ticket')
   .option('--project <name>', 'Project name')
-  .option('--description <text>', 'Ticket description')
+  .requiredOption('--description <text>', 'Ticket description (minimum 500 words)')
   .option('--priority <level>', 'Priority (low|medium|high|critical)')
   .option('--customer-email <email>', 'Customer email')
   .action(async (title, options) => {
     checkEnv();
+
+    // Validate description has minimum 500 words
+    validateDescription(options.description, 'description');
+
     console.log('Would create ticket:', { title, options });
   });
 
@@ -2450,7 +2521,7 @@ roadmaps
   .description('Create new roadmap')
   .requiredOption('--start-date <date>', 'Start date (YYYY-MM-DD)')
   .requiredOption('--end-date <date>', 'End date (YYYY-MM-DD)')
-  .option('--description <text>', 'Roadmap description')
+  .requiredOption('--description <text>', 'Roadmap description (minimum 500 words)')
   .option('--status <status>', 'Status (active|archived|completed)')
   .option('--tags <tags>', 'Tags (comma-separated)')
   .option('--project-ids <ids>', 'Project IDs (comma-separated)')
@@ -2458,6 +2529,9 @@ roadmaps
     checkEnv();
 
     try {
+      // Validate description has minimum 500 words
+      validateDescription(options.description, 'description');
+
       console.log(`🗺️  Creating roadmap: ${name}`);
       console.log('');
 
@@ -2981,7 +3055,7 @@ milestones
   .description('Create new milestone')
   .requiredOption('--start-date <date>', 'Start date (YYYY-MM-DD)')
   .requiredOption('--end-date <date>', 'End date (YYYY-MM-DD)')
-  .option('--description <text>', 'Milestone description')
+  .requiredOption('--description <text>', 'Milestone description (minimum 500 words)')
   .option('--status <status>', 'Status (pending|in_progress|completed|cancelled)')
   .option('--tags <tags>', 'Tags (comma-separated)')
   .option('--color <hex>', 'Color hex code (e.g., #2563EB)')
@@ -2989,6 +3063,9 @@ milestones
     checkEnv();
 
     try {
+      // Validate description has minimum 500 words
+      validateDescription(options.description, 'description');
+
       console.log(`🎯 Creating milestone: ${name}`);
       console.log('');
 
