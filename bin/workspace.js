@@ -177,13 +177,26 @@ files
   .description('List all files')
   .option('--path <prefix>', 'Filter by path prefix')
   .option('--tags <tags>', 'Filter by tags (comma-separated)')
-  .option('--project-id <id>', 'Filter by project')
+  .option('--project-name <name>', 'Filter by project name (a-z0-9)')
+  .option('--project-id <id>', 'Filter by project ID (short or long UUID)')
   .option('--agent <name>', 'Filter by creator agent')
+  .option('--limit <number>', 'Max results (default: 50, max: 500)')
+  .option('--offset <number>', 'Skip first N results (default: 0)')
   .action(async (options) => {
     checkEnv();
 
     try {
-      const response = await listFiles(options);
+      // Build filter params
+      const filters = {};
+      if (options.path) filters.path = options.path;
+      if (options.tags) filters.tags = options.tags;
+      if (options.projectName) filters.project_name = options.projectName;
+      if (options.projectId) filters.project_id = options.projectId;
+      if (options.agent) filters.agent = options.agent;
+      if (options.limit) filters.limit = parseInt(options.limit);
+      if (options.offset) filters.offset = parseInt(options.offset);
+
+      const response = await listFiles(filters);
 
       console.log('');
       console.log(`📂 Files (${response.count} total)`);
@@ -330,14 +343,26 @@ const features = program
 features
   .command('list')
   .description('List feature requests')
-  .option('--project <name>', 'Filter by project')
+  .option('--project-name <name>', 'Filter by project name (a-z0-9)')
+  .option('--project-id <id>', 'Filter by project ID (short or long UUID)')
   .option('--status <status>', 'Filter by status')
   .option('--priority <level>', 'Filter by priority')
+  .option('--limit <number>', 'Max results (default: 50, max: 500)')
+  .option('--offset <number>', 'Skip first N results (default: 0)')
   .action(async (options) => {
     checkEnv();
 
     try {
-      const response = await listFeatures(options);
+      // Build filter params
+      const filters = {};
+      if (options.projectName) filters.project_name = options.projectName;
+      if (options.projectId) filters.project_id = options.projectId;
+      if (options.status) filters.status = options.status;
+      if (options.priority) filters.priority = options.priority;
+      if (options.limit) filters.limit = parseInt(options.limit);
+      if (options.offset) filters.offset = parseInt(options.offset);
+
+      const response = await listFeatures(filters);
 
       console.log('');
       console.log(`📋 Features (${response.count} total)`);
@@ -590,14 +615,30 @@ const bugs = program
 bugs
   .command('list')
   .description('List bugs')
-  .option('--project <name>', 'Filter by project')
-  .option('--status <status>', 'Filter by status')
-  .option('--severity <level>', 'Filter by severity')
+  .option('--project-name <name>', 'Filter by project name (a-z0-9)')
+  .option('--project-id <id>', 'Filter by project ID (short or long UUID)')
+  .option('--status <status>', 'Filter by status (open|in_progress|resolved|closed|archived)')
+  .option('--priority <level>', 'Filter by priority (low|medium|high|critical)')
+  .option('--severity <level>', 'Filter by severity (low|medium|high|critical)')
+  .option('--include-archived', 'Include archived bugs (default: false)')
+  .option('--limit <number>', 'Max results (default: 50, max: 500)')
+  .option('--offset <number>', 'Skip first N results (default: 0)')
   .action(async (options) => {
     checkEnv();
 
     try {
-      const response = await listBugs(options);
+      // Build filter params
+      const filters = {};
+      if (options.projectName) filters.project_name = options.projectName;
+      if (options.projectId) filters.project_id = options.projectId;
+      if (options.status) filters.status = options.status;
+      if (options.priority) filters.priority = options.priority;
+      if (options.severity) filters.severity = options.severity;
+      if (options.includeArchived) filters.include_archived = true;
+      if (options.limit) filters.limit = parseInt(options.limit);
+      if (options.offset) filters.offset = parseInt(options.offset);
+
+      const response = await listBugs(filters);
 
       console.log('');
       console.log(`🐛 Bugs (${response.bugs.length} found)`);
@@ -825,15 +866,30 @@ const testCases = program
 testCases
   .command('list')
   .description('List test cases')
-  .option('--project <name>', 'Filter by project')
+  .option('--project-name <name>', 'Filter by project name (a-z0-9)')
+  .option('--project-id <id>', 'Filter by project ID (short or long UUID)')
   .option('--suite <name>', 'Filter by suite')
+  .option('--status <status>', 'Filter by status (active|inactive|all, default: active)')
   .option('--priority <level>', 'Filter by priority')
   .option('--role <name>', 'Filter by role')
+  .option('--limit <number>', 'Max results (default: 50, max: 500)')
+  .option('--offset <number>', 'Skip first N results (default: 0)')
   .action(async (options) => {
     checkEnv();
 
     try {
-      const response = await listTestCases(options);
+      // Build filter params
+      const filters = {};
+      if (options.projectName) filters.project_name = options.projectName;
+      if (options.projectId) filters.project_id = options.projectId;
+      if (options.suite) filters.suite = options.suite;
+      if (options.status) filters.status = options.status;
+      if (options.priority) filters.priority = options.priority;
+      if (options.role) filters.role = options.role;
+      if (options.limit) filters.limit = parseInt(options.limit);
+      if (options.offset) filters.offset = parseInt(options.offset);
+
+      const response = await listTestCases(filters);
 
       console.log('');
       console.log(`📋 Test Cases (${response.count || response.testCases.length} found)`);
@@ -1247,15 +1303,28 @@ executions
 executions
   .command('list')
   .description('List test executions')
-  .option('--project <name>', 'Filter by project')
+  .option('--project-name <name>', 'Filter by project name (a-z0-9)')
+  .option('--project-id <id>', 'Filter by project ID (short or long UUID)')
   .option('--status <status>', 'Filter by status (running|passed|failed|skipped)')
   .option('--agent <name>', 'Filter by executor')
-  .option('--limit <number>', 'Max results (default: 50)')
+  .option('--environment <env>', 'Filter by environment')
+  .option('--limit <number>', 'Max results (default: 50, max: 500)')
+  .option('--offset <number>', 'Skip first N results (default: 0)')
   .action(async (options) => {
     checkEnv();
 
     try {
-      const response = await listExecutions(options);
+      // Build filter params
+      const filters = {};
+      if (options.projectName) filters.project_name = options.projectName;
+      if (options.projectId) filters.project_id = options.projectId;
+      if (options.status) filters.status = options.status;
+      if (options.agent) filters.agent = options.agent;
+      if (options.environment) filters.environment = options.environment;
+      if (options.limit) filters.limit = parseInt(options.limit);
+      if (options.offset) filters.offset = parseInt(options.offset);
+
+      const response = await listExecutions(filters);
 
       console.log('');
       console.log(`🚀 Test Executions (${response.count || response.executions.length} found)`);
