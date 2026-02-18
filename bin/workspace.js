@@ -12,7 +12,7 @@ const { Command } = require('commander');
 const { readFileSync, writeFileSync } = require('fs');
 const { join, basename } = require('path');
 const { prepareFileForUpload, formatFileSize, formatExpiry } = require('../src/lib/fileUtils');
-const { uploadFile, downloadFile, listFiles, getFileMetadata, deleteFile: apiDeleteFile, updateFile: apiUpdateFile, getProjectByName, listProjects, getProject, createProject, listFeatures, createFeature, getFeature, updateFeature, deleteFeature, addFeatureComment, listFeatureComments, listBugs, createBug, getBug, updateBug, deleteBug, addBugComment, listBugComments, listTestCases, createTestCase, getTestCase, updateTestCase, deleteTestCase, addTestCaseComment, listTestCaseComments, startExecution, updateExecutionStep, completeExecution, getExecution, listExecutions, getTicket, updateTicket, listTickets, createTicket, respondToTicket, resolveTicket, listRoadmaps, createRoadmap, getRoadmap, updateRoadmap, deleteRoadmap, addRoadmapProject, removeRoadmapProject, getRoadmapGantt, listMilestones, getMilestone, createMilestone, updateMilestone, deleteMilestone, reorderMilestones, addMilestoneItem, removeMilestoneItem, attachFileToEntity, linkFileToEntity, listEntityAttachments, unlinkFileFromEntity } = require('../src/lib/api');
+const { uploadFile, downloadFile, listFiles, getFileMetadata, deleteFile: apiDeleteFile, updateFile: apiUpdateFile, getProjectByName, listProjects, getProject, createProject, listFeatures, createFeature, getFeature, updateFeature, deleteFeature, addFeatureComment, listFeatureComments, listBugs, createBug, getBug, updateBug, deleteBug, addBugComment, listBugComments, listTestCases, createTestCase, getTestCase, updateTestCase, deleteTestCase, addTestCaseComment, listTestCaseComments, startExecution, updateExecutionStep, completeExecution, getExecution, listExecutions, getTicket, updateTicket, listTickets, createTicket, respondToTicket, resolveTicket, listRoadmaps, createRoadmap, getRoadmap, updateRoadmap, deleteRoadmap, addRoadmapProject, removeRoadmapProject, getRoadmapGantt, listMilestones, getMilestone, createMilestone, updateMilestone, deleteMilestone, reorderMilestones, addMilestoneItem, removeMilestoneItem, listKnowledgebaseArticles, createKnowledgebaseArticle, getKnowledgebaseArticle, updateKnowledgebaseArticle, deleteKnowledgebaseArticle, searchKnowledgebaseArticles, linkKnowledgebaseArticle, unlinkKnowledgebaseArticle, findKnowledgebaseArticlesByResource, attachFileToEntity, linkFileToEntity, listEntityAttachments, unlinkFileFromEntity } = require('../src/lib/api');
 const axios = require('axios');
 
 // Get package.json for version
@@ -106,6 +106,81 @@ function validateDescription(description, fieldName = 'description') {
     console.error('  • Any relevant data or examples');
     console.error('');
     console.error('Quality over quantity - but context is critical for collaboration!');
+    process.exit(1);
+  }
+
+  return true;
+}
+
+function validateKBContent(content) {
+  if (!content) {
+    console.error('❌ Error: content is required');
+    console.error('');
+    console.error('Knowledge base articles need detailed content to be useful for AI agents.');
+    process.exit(1);
+  }
+
+  // Count words
+  const words = content.trim().split(/\s+/).filter(word => word.length > 0);
+  const wordCount = words.length;
+  const MIN_WORDS = 500;
+
+  if (wordCount < MIN_WORDS) {
+    console.error(`❌ Error: KB content too short (found ${wordCount}, minimum ${MIN_WORDS} words required)`);
+    console.error('');
+    console.error('Why 500 words minimum?');
+    console.error('');
+    console.error('Knowledge base articles are documentation that AI agents will reference to:');
+    console.error('  • Understand how to solve common problems');
+    console.error('  • Learn about system architecture and implementation');
+    console.error('  • Find step-by-step troubleshooting guides');
+    console.error('  • Auto-respond to tickets with helpful information');
+    console.error('  • Reduce duplicate questions and issues');
+    console.error('');
+    console.error('Quality documentation requires detail. Please include:');
+    console.error('  • Problem description and context');
+    console.error('  • Step-by-step solution or explanation');
+    console.error('  • Code examples or commands');
+    console.error('  • Related systems or dependencies');
+    console.error('  • Common pitfalls or edge cases');
+    console.error('  • Additional resources or references');
+    console.error('');
+    process.exit(1);
+  }
+
+  return true;
+}
+
+function validateKBSummary(summary) {
+  if (!summary) {
+    console.error('❌ Error: summary is required');
+    console.error('');
+    console.error('Summaries help AI agents quickly understand if an article is relevant.');
+    process.exit(1);
+  }
+
+  // Count words
+  const words = summary.trim().split(/\s+/).filter(word => word.length > 0);
+  const wordCount = words.length;
+  const MIN_WORDS = 20;
+
+  if (wordCount < MIN_WORDS) {
+    console.error(`❌ Error: KB summary too short (found ${wordCount}, minimum ${MIN_WORDS} words required)`);
+    console.error('');
+    console.error('Why 20 words minimum?');
+    console.error('');
+    console.error('Summaries appear when viewing bugs, features, and tickets with linked KB articles.');
+    console.error('AI agents need enough context to decide if they should read the full article.');
+    console.error('');
+    console.error('A good summary should:');
+    console.error('  • Briefly describe what the article covers');
+    console.error('  • Mention the key problem or topic');
+    console.error('  • Indicate the type of solution or information provided');
+    console.error('');
+    console.error('Example: "This article explains how to troubleshoot database connection timeouts');
+    console.error('in production environments, including common causes like firewall rules, network');
+    console.error('latency, and connection pool exhaustion, with step-by-step debugging commands."');
+    console.error('');
     process.exit(1);
   }
 
@@ -623,6 +698,25 @@ features
         console.log('');
       }
 
+      // Display linked KB articles
+      if (response.kb_articles && response.kb_articles.length > 0) {
+        console.log(`   📚 Related Knowledge Base Articles (${response.kb_articles.length}):`);
+        console.log('');
+        response.kb_articles.forEach(kb => {
+          console.log(`      📄 ${kb.title} (${kb.article_number || kb.id.substring(0, 8)})`);
+          if (kb.summary) {
+            console.log(`         ${kb.summary}`);
+          }
+          if (kb.tags && kb.tags.length > 0) {
+            console.log(`         Tags: ${kb.tags.join(', ')}`);
+          }
+          if (kb.link_reason) {
+            console.log(`         Why: ${kb.link_reason}`);
+          }
+          console.log('');
+        });
+      }
+
       // Display milestone attachments
       if (response.milestones && response.milestones.length > 0) {
         console.log(`   📍 Milestones (${response.milestones.length}):`);
@@ -1070,6 +1164,25 @@ bugs
         console.log(`   Description:`);
         console.log(`   ${bug.description}`);
         console.log('');
+      }
+
+      // Display linked KB articles
+      if (response.kb_articles && response.kb_articles.length > 0) {
+        console.log(`   📚 Related Knowledge Base Articles (${response.kb_articles.length}):`);
+        console.log('');
+        response.kb_articles.forEach(kb => {
+          console.log(`      📄 ${kb.title} (${kb.article_number || kb.id.substring(0, 8)})`);
+          if (kb.summary) {
+            console.log(`         ${kb.summary}`);
+          }
+          if (kb.tags && kb.tags.length > 0) {
+            console.log(`         Tags: ${kb.tags.join(', ')}`);
+          }
+          if (kb.link_reason) {
+            console.log(`         Why: ${kb.link_reason}`);
+          }
+          console.log('');
+        });
       }
 
       // Display milestone attachments
@@ -1542,6 +1655,25 @@ testCases
       if (tc.page_url) {
         console.log(`   Page URL: ${tc.page_url}`);
         console.log('');
+      }
+
+      // Display linked KB articles
+      if (response.kb_articles && response.kb_articles.length > 0) {
+        console.log(`   📚 Related Knowledge Base Articles (${response.kb_articles.length}):`);
+        console.log('');
+        response.kb_articles.forEach(kb => {
+          console.log(`      📄 ${kb.title} (${kb.article_number || kb.id.substring(0, 8)})`);
+          if (kb.summary) {
+            console.log(`         ${kb.summary}`);
+          }
+          if (kb.tags && kb.tags.length > 0) {
+            console.log(`         Tags: ${kb.tags.join(', ')}`);
+          }
+          if (kb.link_reason) {
+            console.log(`         Why: ${kb.link_reason}`);
+          }
+          console.log('');
+        });
       }
 
       // Display milestone attachments
@@ -2262,6 +2394,25 @@ tickets
         console.log('');
       }
 
+      // Display linked KB articles
+      if (response.kb_articles && response.kb_articles.length > 0) {
+        console.log(`   📚 Related Knowledge Base Articles (${response.kb_articles.length}):`);
+        console.log('');
+        response.kb_articles.forEach(kb => {
+          console.log(`      📄 ${kb.title} (${kb.article_number || kb.id.substring(0, 8)})`);
+          if (kb.summary) {
+            console.log(`         ${kb.summary}`);
+          }
+          if (kb.tags && kb.tags.length > 0) {
+            console.log(`         Tags: ${kb.tags.join(', ')}`);
+          }
+          if (kb.link_reason) {
+            console.log(`         Why: ${kb.link_reason}`);
+          }
+          console.log('');
+        });
+      }
+
       // Display milestone attachments
       if (response.milestones && response.milestones.length > 0) {
         console.log(`   📍 Milestones (${response.milestones.length}):`);
@@ -2757,6 +2908,410 @@ projects
       if (error.response?.status === 404) {
         console.error('   Project not found');
       }
+      process.exit(1);
+    }
+  });
+
+// ============================================================================
+// KNOWLEDGEBASE Commands - Documentation and knowledge articles
+// ============================================================================
+const knowledgebase = program
+  .command('knowledgebase')
+  .alias('kb')
+  .description('Manage knowledge base articles');
+
+knowledgebase
+  .command('list')
+  .description('List knowledge base articles')
+  .option('--project-id <id>', 'Filter by project ID (short or long UUID)')
+  .option('--tags <tags>', 'Filter by tags (comma-separated)')
+  .option('--limit <number>', 'Max results (default: 50, max: 500)')
+  .option('--offset <number>', 'Skip first N results (default: 0)')
+  .action(async (options) => {
+    checkEnv();
+
+    try {
+      const filters = {};
+      if (options.projectId) filters.project_id = options.projectId;
+      if (options.tags) filters.tags = options.tags;
+      if (options.limit) filters.limit = parseInt(options.limit);
+      if (options.offset) filters.offset = parseInt(options.offset);
+
+      const response = await listKnowledgebaseArticles(filters);
+
+      console.log('');
+      console.log(`📚 Knowledge Base Articles (${response.total || response.articles?.length || 0} found)`);
+      console.log('');
+
+      if (!response.articles || response.articles.length === 0) {
+        console.log('   No articles found');
+        console.log('');
+        return;
+      }
+
+      response.articles.forEach(article => {
+        console.log(`   📄 ${article.title}`);
+        console.log(`      Article #: ${article.article_number || article.id.substring(0, 8)}`);
+        if (article.summary) {
+          console.log(`      Summary: ${article.summary.substring(0, 100)}${article.summary.length > 100 ? '...' : ''}`);
+        }
+        if (article.tags && article.tags.length > 0) {
+          console.log(`      Tags: ${article.tags.join(', ')}`);
+        }
+        console.log(`      Created: ${new Date(article.created_at).toLocaleString()}`);
+        console.log('');
+      });
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+knowledgebase
+  .command('create <title>')
+  .description('Create new knowledge base article')
+  .requiredOption('--content <text>', 'Article content (supports Markdown, minimum 500 words required)')
+  .requiredOption('--summary <text>', 'Short summary (minimum 20 words required)')
+  .requiredOption('--tags <tags>', 'Tags (comma-separated, minimum 2 tags required)')
+  .option('--project-id <id>', 'Link to project (short or long UUID)')
+  .option('--auto-response', 'Enable for auto-response features', false)
+  .option('--response-template <text>', 'Template for auto-responses')
+  .action(async (title, options) => {
+    checkEnv();
+
+    try {
+      // Validate content (500 words minimum)
+      validateKBContent(options.content);
+
+      // Validate summary (20 words minimum)
+      validateKBSummary(options.summary);
+
+      // Validate minimum 2 tags
+      const tags = options.tags.split(',').map(t => t.trim()).filter(t => t.length > 0);
+      if (tags.length < 2) {
+        console.error('❌ Error: Minimum 2 tags required');
+        console.error('   Please provide at least 2 tags separated by commas');
+        process.exit(1);
+      }
+
+      const data = {
+        title,
+        content: options.content,
+        summary: options.summary,
+        tags: tags,
+        created_by: process.env.SAAC_HIVE_AGENT_NAME
+      };
+
+      if (options.projectId) data.project_id = options.projectId;
+      if (options.autoResponse) data.auto_response_enabled = true;
+      if (options.responseTemplate) data.response_template = options.responseTemplate;
+
+      const response = await createKnowledgebaseArticle(data);
+
+      console.log('');
+      console.log('✅ Knowledge base article created successfully');
+      console.log(`   Article #: ${response.article.article_number || response.article.id.substring(0, 8)}`);
+      console.log(`   Title: ${response.article.title}`);
+      console.log(`   Tags: ${response.article.tags.join(', ')}`);
+      if (response.article.project_id) {
+        console.log(`   Project ID: ${response.article.project_id.substring(0, 8)}`);
+      }
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+knowledgebase
+  .command('get <article-id>')
+  .description('Get knowledge base article details (supports KB-000001, short UUID, full UUID)')
+  .action(async (articleId) => {
+    checkEnv();
+
+    try {
+      const response = await getKnowledgebaseArticle(articleId);
+      const article = response.article;
+
+      console.log('');
+      console.log(`📄 ${article.title}`);
+      console.log('');
+      console.log(`   Article #: ${article.article_number || article.id.substring(0, 8)}`);
+      console.log(`   ID: ${article.id}`);
+      console.log('');
+      console.log(`   Created: ${new Date(article.created_at).toLocaleString()}`);
+      console.log(`   Updated: ${new Date(article.updated_at).toLocaleString()}`);
+      console.log('');
+
+      if (article.summary) {
+        console.log(`   Summary:`);
+        console.log(`   ${article.summary}`);
+        console.log('');
+      }
+
+      if (article.tags && article.tags.length > 0) {
+        console.log(`   Tags: ${article.tags.join(', ')}`);
+        console.log('');
+      }
+
+      console.log(`   Content:`);
+      console.log(`   ${article.content}`);
+      console.log('');
+
+      if (article.auto_response_enabled) {
+        console.log(`   🤖 Auto-response: Enabled`);
+        if (article.response_template) {
+          console.log(`   Template: ${article.response_template}`);
+        }
+        console.log('');
+      }
+
+      // Display linked resources
+      if (response.links && response.links.length > 0) {
+        console.log(`   🔗 Linked Resources (${response.links.length}):`);
+        console.log('');
+        response.links.forEach(link => {
+          const emoji = {
+            'bug': '🐛',
+            'feature': '📋',
+            'ticket': '🎫',
+            'file': '📄',
+            'test_case': '📝'
+          }[link.resource_type] || '📎';
+          console.log(`      ${emoji} ${link.resource_type}: ${link.resource_id.substring(0, 8)}`);
+          if (link.reason) {
+            console.log(`         Reason: ${link.reason}`);
+          }
+        });
+        console.log('');
+      }
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      if (error.response?.status === 404) {
+        console.error('   Article not found');
+      }
+      process.exit(1);
+    }
+  });
+
+knowledgebase
+  .command('update <article-id>')
+  .description('Update knowledge base article')
+  .option('--title <text>', 'New title')
+  .option('--content <text>', 'New content (supports Markdown, minimum 500 words)')
+  .option('--summary <text>', 'New summary (minimum 20 words)')
+  .option('--tags <tags>', 'New tags (comma-separated, minimum 2 tags)')
+  .option('--auto-response <bool>', 'Enable/disable auto-response (true|false)')
+  .option('--response-template <text>', 'New response template')
+  .action(async (articleId, options) => {
+    checkEnv();
+
+    try {
+      const updates = {};
+
+      if (options.title) updates.title = options.title;
+
+      if (options.content) {
+        validateKBContent(options.content);
+        updates.content = options.content;
+      }
+
+      if (options.summary) {
+        validateKBSummary(options.summary);
+        updates.summary = options.summary;
+      }
+
+      if (options.tags) {
+        const tags = options.tags.split(',').map(t => t.trim()).filter(t => t.length > 0);
+        if (tags.length < 2) {
+          console.error('❌ Error: Minimum 2 tags required');
+          console.error('   Please provide at least 2 tags separated by commas');
+          process.exit(1);
+        }
+        updates.tags = tags;
+      }
+      if (options.autoResponse) updates.auto_response_enabled = options.autoResponse === 'true';
+      if (options.responseTemplate) updates.response_template = options.responseTemplate;
+
+      const response = await updateKnowledgebaseArticle(articleId, updates);
+
+      console.log('');
+      console.log('✅ Article updated successfully');
+      console.log(`   Article #: ${response.article.article_number || articleId}`);
+      console.log(`   Title: ${response.article.title}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+knowledgebase
+  .command('delete <article-id>')
+  .description('Delete knowledge base article')
+  .action(async (articleId) => {
+    checkEnv();
+
+    try {
+      await deleteKnowledgebaseArticle(articleId);
+
+      console.log('');
+      console.log('✅ Article deleted successfully');
+      console.log(`   Article ID: ${articleId}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+knowledgebase
+  .command('search <query>')
+  .description('Search knowledge base articles (full-text search)')
+  .option('--tags <tags>', 'Filter by tags (comma-separated)')
+  .option('--limit <number>', 'Max results (default: 50)')
+  .action(async (query, options) => {
+    checkEnv();
+
+    try {
+      const filters = { query };
+      if (options.tags) filters.tags = options.tags;
+      if (options.limit) filters.limit = parseInt(options.limit);
+
+      const response = await searchKnowledgebaseArticles(filters);
+
+      console.log('');
+      console.log(`🔍 Search Results for "${query}" (${response.total || response.articles?.length || 0} found)`);
+      console.log('');
+
+      if (!response.articles || response.articles.length === 0) {
+        console.log('   No articles found matching your query');
+        console.log('');
+        return;
+      }
+
+      response.articles.forEach(article => {
+        console.log(`   📄 ${article.title}`);
+        console.log(`      Article #: ${article.article_number || article.id.substring(0, 8)}`);
+        if (article.summary) {
+          console.log(`      Summary: ${article.summary.substring(0, 100)}${article.summary.length > 100 ? '...' : ''}`);
+        }
+        if (article.tags && article.tags.length > 0) {
+          console.log(`      Tags: ${article.tags.join(', ')}`);
+        }
+        console.log('');
+      });
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+knowledgebase
+  .command('link <article-id>')
+  .description('Link article to a resource (bug, feature, ticket, file, test-case)')
+  .requiredOption('--type <type>', 'Resource type (bug|feature|ticket|file|test_case)')
+  .requiredOption('--resource-id <id>', 'Resource ID (short or long UUID)')
+  .option('--reason <text>', 'Reason for linking')
+  .action(async (articleId, options) => {
+    checkEnv();
+
+    try {
+      const data = {
+        resource_type: options.type,
+        resource_id: options.resourceId
+      };
+
+      if (options.reason) {
+        data.reason = options.reason;
+      }
+
+      const response = await linkKnowledgebaseArticle(articleId, data);
+
+      console.log('');
+      console.log('✅ Article linked to resource successfully');
+      console.log(`   Article: ${articleId}`);
+      console.log(`   Resource Type: ${options.type}`);
+      console.log(`   Resource ID: ${options.resourceId}`);
+      if (options.reason) {
+        console.log(`   Reason: ${options.reason}`);
+      }
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+knowledgebase
+  .command('unlink <article-id>')
+  .description('Unlink article from a resource')
+  .requiredOption('--type <type>', 'Resource type (bug|feature|ticket|file|test_case)')
+  .requiredOption('--resource-id <id>', 'Resource ID (short or long UUID)')
+  .action(async (articleId, options) => {
+    checkEnv();
+
+    try {
+      const data = {
+        resource_type: options.type,
+        resource_id: options.resourceId
+      };
+
+      await unlinkKnowledgebaseArticle(articleId, data);
+
+      console.log('');
+      console.log('✅ Article unlinked from resource successfully');
+      console.log(`   Article: ${articleId}`);
+      console.log(`   Resource Type: ${options.type}`);
+      console.log(`   Resource ID: ${options.resourceId}`);
+      console.log('');
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
+      process.exit(1);
+    }
+  });
+
+knowledgebase
+  .command('find-by-resource <type> <resource-id>')
+  .description('Find articles linked to a resource (bug, feature, ticket, file, test-case)')
+  .action(async (type, resourceId) => {
+    checkEnv();
+
+    try {
+      const response = await findKnowledgebaseArticlesByResource(type, resourceId);
+
+      console.log('');
+      console.log(`📚 Articles linked to ${type}: ${resourceId}`);
+      console.log('');
+
+      if (!response.articles || response.articles.length === 0) {
+        console.log('   No linked articles found');
+        console.log('');
+        return;
+      }
+
+      response.articles.forEach(article => {
+        console.log(`   📄 ${article.title}`);
+        console.log(`      Article #: ${article.article_number || article.id.substring(0, 8)}`);
+        if (article.tags && article.tags.length > 0) {
+          console.log(`      Tags: ${article.tags.join(', ')}`);
+        }
+        if (article.link_reason) {
+          console.log(`      Link Reason: ${article.link_reason}`);
+        }
+        console.log('');
+      });
+
+    } catch (error) {
+      console.error('❌ Error:', error.response?.data?.error || error.message);
       process.exit(1);
     }
   });

@@ -589,6 +589,97 @@ async function removeMilestoneItem(milestoneId, itemId) {
 }
 
 // ============================================================================
+// KNOWLEDGE BASE - Articles and documentation
+// ============================================================================
+
+/**
+ * List knowledge base articles
+ */
+async function listKnowledgebaseArticles(filters = {}) {
+  const client = createClient();
+  const response = await client.get('/api/kb-articles', {
+    params: filters
+  });
+  return response.data;
+}
+
+/**
+ * Create knowledge base article
+ */
+async function createKnowledgebaseArticle(data) {
+  const client = createClient();
+  const response = await client.post('/api/kb-articles', data);
+  return response.data;
+}
+
+/**
+ * Get knowledge base article by ID
+ */
+async function getKnowledgebaseArticle(articleId) {
+  const client = createClient();
+  const response = await client.get(`/api/kb-articles/${articleId}`);
+  return response.data;
+}
+
+/**
+ * Update knowledge base article
+ */
+async function updateKnowledgebaseArticle(articleId, updates) {
+  const client = createClient();
+  const response = await client.put(`/api/kb-articles/${articleId}`, updates);
+  return response.data;
+}
+
+/**
+ * Delete knowledge base article
+ */
+async function deleteKnowledgebaseArticle(articleId) {
+  const client = createClient();
+  const response = await client.delete(`/api/kb-articles/${articleId}`);
+  return response.data;
+}
+
+/**
+ * Search knowledge base articles
+ */
+async function searchKnowledgebaseArticles(filters = {}) {
+  const client = createClient();
+  const response = await client.get('/api/kb-articles/search', {
+    params: filters
+  });
+  return response.data;
+}
+
+/**
+ * Link knowledge base article to resource
+ */
+async function linkKnowledgebaseArticle(articleId, data) {
+  const client = createClient();
+  const response = await client.post(`/api/kb-articles/${articleId}/links`, data);
+  return response.data;
+}
+
+/**
+ * Unlink knowledge base article from resource
+ */
+async function unlinkKnowledgebaseArticle(articleId, data) {
+  const client = createClient();
+  const response = await client.delete(`/api/kb-articles/${articleId}/links`, {
+    data
+  });
+  return response.data;
+}
+
+/**
+ * Find knowledge base articles by resource
+ */
+async function findKnowledgebaseArticlesByResource(resourceType, resourceId) {
+  const client = createClient();
+  const response = await client.get(`/api/kb-articles/by-resource/${resourceType}/${resourceId}`);
+  return response.data;
+}
+
+// ============================================================================
 // ATTACHMENTS - File attachments for entities
 // ============================================================================
 
@@ -688,6 +779,15 @@ module.exports = {
   reorderMilestones,
   addMilestoneItem,
   removeMilestoneItem,
+  listKnowledgebaseArticles,
+  createKnowledgebaseArticle,
+  getKnowledgebaseArticle,
+  updateKnowledgebaseArticle,
+  deleteKnowledgebaseArticle,
+  searchKnowledgebaseArticles,
+  linkKnowledgebaseArticle,
+  unlinkKnowledgebaseArticle,
+  findKnowledgebaseArticlesByResource,
   attachFileToEntity,
   linkFileToEntity,
   listEntityAttachments,

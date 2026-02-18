@@ -1,8 +1,8 @@
 # @startanaicompany/workspace
 
-Official CLI for StartAnAiCompany Workspace Management - file storage with attachments, features, bugs, test cases, test executions, roadmaps, milestones, and project management.
+Official CLI for StartAnAiCompany Workspace Management - file storage with attachments, features, bugs, test cases, test executions, roadmaps, milestones, knowledge base, and project management.
 
-**Version:** 1.11.2
+**Version:** 1.12.1
 **License:** MIT
 **Homepage:** https://workspace.startanaicompany.com
 
@@ -22,6 +22,7 @@ Official CLI for StartAnAiCompany Workspace Management - file storage with attac
   - [Test Executions](#test-executions)
   - [Support Tickets](#support-tickets)
   - [Roadmaps and Milestones](#roadmaps-and-milestones)
+  - [Knowledge Base Management](#knowledge-base-management)
   - [Projects Management](#projects-management)
 - [Features](#features)
 - [File Auto-Expiry](#file-auto-expiry)
@@ -1603,6 +1604,199 @@ workspace milestones remove-item mile1234 item5678
 
 ---
 
+### Knowledge Base Management
+
+Manage knowledge base articles for documentation, guides, and automated responses. Articles support Markdown formatting and require minimum 2 tags for organization. Articles can be linked to bugs, features, tickets, files, and test cases.
+
+#### `workspace knowledgebase list`
+
+List knowledge base articles with filtering (alias: `workspace kb list`).
+
+**Options:**
+- `--project-id <id>` - Filter by project ID (short or long UUID)
+- `--tags <tags>` - Filter by tags (comma-separated)
+- `--limit <number>` - Max results (default: 50, max: 500)
+- `--offset <number>` - Skip first N results (default: 0)
+
+**Example:**
+
+```bash
+workspace knowledgebase list --tags "troubleshooting,common" --limit 10
+workspace kb list --project-id abc12345
+```
+
+---
+
+#### `workspace knowledgebase create <title>`
+
+Create a new knowledge base article (alias: `workspace kb create`).
+
+**Options:**
+- `--content <text>` - Article content in Markdown (minimum 500 words required)
+- `--summary <text>` - Short summary (minimum 20 words required)
+- `--tags <tags>` - Comma-separated tags (minimum 2 tags required)
+- `--project-id <id>` - Link to project (short or long UUID)
+- `--auto-response` - Enable for auto-response features (default: false)
+- `--response-template <text>` - Template for auto-responses
+
+**Example:**
+
+```bash
+workspace knowledgebase create "How to Fix Connection Timeout" \
+  --content "## Solution\n\n1. Check network connectivity\n2. Verify firewall settings\n3. Restart service" \
+  --tags "troubleshooting,network,timeout" \
+  --summary "Common fixes for connection timeout errors" \
+  --auto-response \
+  --response-template "This is a known issue. Please follow the KB article for resolution."
+```
+
+---
+
+#### `workspace knowledgebase get <article-id>`
+
+Get knowledge base article details by ID (alias: `workspace kb get`).
+
+Supports article number (KB-000001), short UUID (8 chars), or full UUID.
+
+**Example:**
+
+```bash
+workspace knowledgebase get KB-000042
+workspace kb get abc12345
+```
+
+**Output:**
+- Article title and summary
+- Full Markdown content
+- Tags and auto-response settings
+- Created/updated timestamps
+- Linked resources (bugs, features, tickets, files, test cases)
+
+---
+
+#### `workspace knowledgebase update <article-id>`
+
+Update knowledge base article (alias: `workspace kb update`).
+
+**Options:**
+- `--title <text>` - New title
+- `--content <text>` - New Markdown content
+- `--summary <text>` - New summary
+- `--tags <tags>` - New tags (comma-separated, minimum 2 tags, replaces existing)
+- `--project-id <id>` - New project ID
+- `--auto-response <boolean>` - Enable/disable auto-response (true/false)
+- `--response-template <text>` - New response template
+
+**Example:**
+
+```bash
+workspace knowledgebase update KB-000042 \
+  --title "Updated: Connection Timeout Fix" \
+  --content "## Updated Solution\n\nNew steps..." \
+  --tags "troubleshooting,network,timeout,updated"
+```
+
+---
+
+#### `workspace knowledgebase delete <article-id>`
+
+Delete knowledge base article (alias: `workspace kb delete`).
+
+**Example:**
+
+```bash
+workspace knowledgebase delete KB-000042
+workspace kb delete abc12345
+```
+
+---
+
+#### `workspace knowledgebase search <query>`
+
+Full-text search across knowledge base articles (alias: `workspace kb search`).
+
+**Options:**
+- `--tags <tags>` - Filter results by tags (comma-separated)
+- `--limit <number>` - Max results (default: 50)
+
+**Example:**
+
+```bash
+workspace knowledgebase search "connection timeout" --tags "troubleshooting,network"
+workspace kb search "API error" --tags "api,troubleshooting" --limit 5
+```
+
+---
+
+#### `workspace knowledgebase link <article-id>`
+
+Link knowledge base article to a resource (bug, feature, ticket, file, or test case).
+
+**Options:**
+- `--resource-type <type>` - Resource type: bug, feature, ticket, file, test-case (required)
+- `--resource-id <id>` - Resource ID (short or long UUID, required)
+- `--reason <text>` - Reason for linking (optional)
+
+**Example:**
+
+```bash
+workspace knowledgebase link KB-000042 \
+  --resource-type bug \
+  --resource-id bug5678 \
+  --reason "This article explains the root cause and fix"
+
+workspace kb link abc12345 \
+  --resource-type feature \
+  --resource-id feat9012
+```
+
+---
+
+#### `workspace knowledgebase unlink <article-id>`
+
+Unlink knowledge base article from a resource.
+
+**Options:**
+- `--resource-type <type>` - Resource type: bug, feature, ticket, file, test-case (required)
+- `--resource-id <id>` - Resource ID (short or long UUID, required)
+
+**Example:**
+
+```bash
+workspace knowledgebase unlink KB-000042 \
+  --resource-type bug \
+  --resource-id bug5678
+
+workspace kb unlink abc12345 \
+  --resource-type feature \
+  --resource-id feat9012
+```
+
+---
+
+#### `workspace knowledgebase find-by-resource <type> <resource-id>`
+
+Find all knowledge base articles linked to a specific resource.
+
+**Arguments:**
+- `<type>` - Resource type: bug, feature, ticket, file, test-case
+- `<resource-id>` - Resource ID (short or long UUID)
+
+**Example:**
+
+```bash
+workspace knowledgebase find-by-resource bug bug5678
+workspace kb find-by-resource feature feat9012
+workspace kb find-by-resource ticket ticket1234
+```
+
+**Output:**
+- List of all KB articles linked to the resource
+- Article titles, categories, summaries
+- Link reasons (if provided)
+
+---
+
 ### Projects Management
 
 Organize and track test cases, bugs, and features within projects. Projects provide grouping and statistics for better organization.
@@ -2209,6 +2403,35 @@ workspace test-cases create "Test" \
 ---
 
 ## Version History
+
+### v1.12.1 (2026-02-18)
+- **New:** 500-word minimum validation for KB article content (consistent with other entities)
+- **New:** 20-word minimum validation for KB article summary (ensures useful context)
+- **New:** KB articles now displayed in bug/feature/ticket/test-case GET commands
+- **Improved:** Summary is now required (not optional) for KB articles
+- **Improved:** When viewing bugs/features/tickets/test-cases, linked KB articles show summary with article number
+- **Improved:** Agents can quickly see if KB article is relevant without fetching full content
+- **Improved:** Better documentation with validation requirements clearly stated
+- **Fixed:** KB update command now validates content (500 words) and summary (20 words) when updated
+
+### v1.12.0 (2026-02-18)
+- **New:** Complete Knowledge Base system for documentation and automated responses (9 commands)
+- **New:** `workspace knowledgebase list` - List KB articles with tag/project filtering (alias: `kb`)
+- **New:** `workspace knowledgebase create` - Create articles with Markdown support (minimum 2 tags required)
+- **New:** `workspace knowledgebase get` - Get article details with linked resources
+- **New:** `workspace knowledgebase update` - Update article content, tags, auto-response settings
+- **New:** `workspace knowledgebase delete` - Delete articles
+- **New:** `workspace knowledgebase search` - Full-text search with tag filtering
+- **New:** `workspace knowledgebase link` - Link articles to bugs, features, tickets, files, test-cases
+- **New:** `workspace knowledgebase unlink` - Unlink articles from resources
+- **New:** `workspace knowledgebase find-by-resource` - Find articles linked to specific resources
+- **New:** 9 new API methods in api.js for KB operations
+- **Improved:** Tags-based organization (no categories - flat structure for AI agents)
+- **Improved:** Minimum 2 tags validation for better organization
+- **Improved:** Auto-response template support for automated ticket responses
+- **Improved:** Polymorphic linking to bugs, features, tickets, files, and test-cases
+- **Improved:** Full Markdown support for article content
+- **Improved:** Article numbering system (KB-000001 format)
 
 ### v1.11.2 (2026-02-17)
 - **Fixed:** Display issues showing "by undefined" in features and files list commands
